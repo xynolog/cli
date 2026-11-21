@@ -23,6 +23,7 @@ import (
 
 	"github.com/xynolog/sdk/go/api"
 
+	"github.com/xynolog/cli"
 	"github.com/xynolog/cli/internal/launcher/stack"
 )
 
@@ -76,7 +77,7 @@ func generateStack(p genParams, name string) (map[string][]byte, error) {
 		return &image, &resources
 	}
 	service := func(svc string) (string, stack.Resources) {
-		return xynologImage(svc, "latest"), limits(xynologDescriptor(svc).mem)
+		return xynologImage(svc, cli.ImagesTag()), limits(xynologDescriptor(svc).mem)
 	}
 	meta := func(kind, name string) (string, string, stack.Metadata) {
 		return stack.APIVersion, kind, stack.Metadata{Name: name}

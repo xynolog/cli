@@ -1,0 +1,77 @@
+name: Publish the CLI
+
+# Application publishing (versioning R17, R18, R19): once a tag's release
+# workflow has passed, a person dispatches this at the tag and approves it in
+# the `release` environment:
+#
+#   gh workflow run publish.yml --ref v26.11.0
+#
+# It checks the tag again, builds with the upstream releases upstream.lock.json
+# names, and releases the archives, Linux packages, checksums and SBOMs as the
+# tag's GitHub release, each attested to this workflow at the tag.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  version:
+    name: The tag names a CLI release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - env:
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/release-version.sh "$TAG"
+
+  tag:
+    needs: version
+    permissions:
+      contents: read
+    uses: xynolog/.github/.github/workflows/release-tag.yml@8e5e3b02c34517d3f8b49645330930983d07b7ac
+    with:
+      tags: ${{ github.ref_name }}
+
+  sdk:
+    needs: [version, tag]
+    permissions:
+      contents: read
+    uses: xynolog/sdk/.github/workflows/upstream.yml@52c59e698b3ee821113f350539f521f6c9df6e1d
+    with:
+      languages: go
+      release: true
+
+  release:
+    name: GitHub release
+    needs: sdk
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/sdk-go-proxy
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: anchore/sbom-action/download-syft@v0.24.3
+      - uses: goreleaser/goreleaser-action@v7.3.0
+        with:
+          version: v2.20.0
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/*.rpm
+            dist/checksums.txt

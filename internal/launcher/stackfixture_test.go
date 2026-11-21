@@ -111,7 +111,9 @@ var catalogWorkerPoolDocument = workerPoolDocument{spec: catalogWorkerPool().Spe
 // base's documents and the state home's do, and they name the
 // launcher's own: each daemon at its descriptor's image (the broker's, which
 // TestBrokerPairIsReadByTheLaunchedBrokersParser holds to go.mod), each
-// Xynolog service at latest, and each at its descriptor's memory. A copy of a
+// Xynolog service at latest, the tag every images release moves, as a
+// knowledge base's own documents may name it, and each at its descriptor's
+// memory. A copy of a
 // pin nothing moves is refused by lint:nats-version; this is what moves it.
 func TestTheFixtureStackNamesTheDescriptorsImages(t *testing.T) {
 	dir := filepath.Join(fixtureRoot, ".xynolog", "stack")

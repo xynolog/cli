@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xynolog/cli"
 	"github.com/xynolog/cli/internal/launcher/harness"
 	"github.com/xynolog/cli/internal/launcher/stack"
 	"github.com/xynolog/sdk/go/api"
@@ -27,12 +28,12 @@ func TestTheWorkerDocumentIsKeptInTheStateHome(t *testing.T) {
 	}
 }
 
-// The catalog's runs the launcher's own worker: its image at latest, with its
-// descriptor's memory, logging at info.
+// The catalog's runs the launcher's own worker: its image at the images tag
+// upstream.lock.json locks, with its descriptor's memory, logging at info.
 func TestTheCatalogWorkerIsTheLaunchersOwn(t *testing.T) {
 	spec := catalogWorkerPool().Spec
-	if spec.Worker.Image != xynologImage("worker", "latest") || spec.Worker.Resources.Limits.Memory != xynologDescriptor("worker").mem || spec.LogLevel != api.LogLevelInfo {
-		t.Errorf("the catalog's worker is %+v, want %s with %s at info", spec, xynologImage("worker", "latest"), xynologDescriptor("worker").mem)
+	if spec.Worker.Image != xynologImage("worker", cli.ImagesTag()) || spec.Worker.Resources.Limits.Memory != xynologDescriptor("worker").mem || spec.LogLevel != api.LogLevelInfo {
+		t.Errorf("the catalog's worker is %+v, want %s with %s at info", spec, xynologImage("worker", cli.ImagesTag()), xynologDescriptor("worker").mem)
 	}
 }
 
@@ -56,19 +57,19 @@ func TestTheFirstNeedWritesTheWorkerDocumentFromTheCatalog(t *testing.T) {
 		t.Fatalf("the document written does not hold to its schema: %v %+v\n%s", err, refusals, text)
 	}
 
-	local := strings.Replace(string(text), "xynolog-worker:latest", "xynolog-worker:local", 1)
-	if local == string(text) {
+	edited := strings.Replace(string(text), xynologImage("worker", cli.ImagesTag()), xynologImage("worker", "edited"), 1)
+	if edited == string(text) {
 		t.Fatalf("the document written names no image: %s", text)
 	}
-	if err := os.WriteFile(workerPoolDocumentPath(), []byte(local), 0o644); err != nil {
+	if err := os.WriteFile(workerPoolDocumentPath(), []byte(edited), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	again, err := loadWorkerPoolDocument(false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again.fromCatalog || again.spec.Worker.Image != xynologImage("worker", "local") {
-		t.Errorf("an edited document read as %+v, want the local image from the file", again)
+	if again.fromCatalog || again.spec.Worker.Image != xynologImage("worker", "edited") {
+		t.Errorf("an edited document read as %+v, want the edited image from the file", again)
 	}
 }
 

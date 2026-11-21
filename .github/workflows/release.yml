@@ -1,66 +1,64 @@
 name: Release
 
+# Application tagging (versioning R14, R17): a person pushes a signed tag
+# vYY.M.N, and this checks the release it names. The tag must be the release
+# signer's, on a commit main holds; upstream.lock.json must name each upstream
+# by its release; and GoReleaser must build every archive and package from it.
+# It publishes nothing. Once it passes, a person dispatches publish.yml at the
+# tag, which releases them:
+#
+#   gh workflow run publish.yml --ref v26.11.0
 on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 jobs:
-  release:
+  version:
+    name: The tag names a CLI release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
+      - env:
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/release-version.sh "$TAG"
+
+  tag:
+    needs: version
+    permissions:
+      contents: read
+    uses: xynolog/.github/.github/workflows/release-tag.yml@8e5e3b02c34517d3f8b49645330930983d07b7ac
+    with:
+      tags: ${{ github.ref_name }}
+
+  sdk:
+    needs: [version, tag]
+    permissions:
+      contents: read
+    uses: xynolog/sdk/.github/workflows/upstream.yml@52c59e698b3ee821113f350539f521f6c9df6e1d
+    with:
+      languages: go
+      release: true
+
+  build:
+    name: GoReleaser builds every archive and package
+    needs: sdk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
-      - name: Read immutable SDK artifact pin
-        id: sdk-pin
-        shell: bash
-        run: node -e 'const p = JSON.parse(require("node:fs").readFileSync("sdk.lock", "utf8")); for (const [k, v] of Object.entries(p)) console.log(`${k}=${v}`)' >> "$GITHUB_OUTPUT"
-      - name: Verify pinned Protocol revision
-        env:
-          EXPECTED_PROTOCOL: ${{ steps.sdk-pin.outputs.protocol }}
-        shell: bash
-        run: |
-          test "$(git ls-tree HEAD protocol | awk '{print $3}')" = "$EXPECTED_PROTOCOL"
-          test "$(git -C protocol rev-parse HEAD)" = "$EXPECTED_PROTOCOL"
-      - name: Download verified SDK artifacts
-        id: sdk
-        uses: xynolog/sdk/.github/actions/download-bundle@e15cfe2996b0da2e115cdc2e2e8f9bb1551c208d
-        with:
-          tag: ${{ steps.sdk-pin.outputs.tag }}
-          commit: ${{ steps.sdk-pin.outputs.commit }}
-          protocol-commit: ${{ steps.sdk-pin.outputs.protocol }}
-          sha256: ${{ steps.sdk-pin.outputs.sha256 }}
-          languages: go
-      - name: Set the Go file proxy
-        env:
-          SDK_ARTIFACTS: ${{ steps.sdk.outputs.path }}
-        shell: bash
-        run: |
-          proxy="$(node -e 'const { pathToFileURL } = require("node:url"); const { join } = require("node:path"); process.stdout.write(pathToFileURL(join(process.argv[1], "go", "go-proxy")).href)' "$SDK_ARTIFACTS")"
-          echo "GOPROXY=$proxy,https://proxy.golang.org" >> "$GITHUB_ENV"
-          echo 'GONOSUMDB=github.com/xynolog/sdk/go' >> "$GITHUB_ENV"
-      - uses: actions/setup-go@v5
+      - uses: ./.github/actions/sdk-go-proxy
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
-      - uses: anchore/sbom-action/download-syft@v0
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: anchore/sbom-action/download-syft@v0.24.3
+      - uses: goreleaser/goreleaser-action@v7.3.0
         with:
-          version: '~> v2'
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/*.deb
-            dist/*.rpm
-            dist/checksums.txt
+          version: v2.20.0
+          args: release --clean --skip=publish

@@ -8,6 +8,7 @@ package launcher
 import (
 	"fmt"
 
+	"github.com/xynolog/cli"
 	"github.com/xynolog/cli/internal/launcher/stack"
 )
 
@@ -35,7 +36,7 @@ func catalogBrowser() stack.Browser {
 		Kind:       "Browser",
 		Metadata:   stack.Metadata{Name: "browser"},
 		Spec: stack.BrowserSpec{
-			Image:     xynologImage("browser", "latest"),
+			Image:     xynologImage("browser", cli.ImagesTag()),
 			Resources: limits(d.mem),
 			Port:      d.defaultPort,
 		},
