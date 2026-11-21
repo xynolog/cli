@@ -507,15 +507,7 @@ func (x *liveExec) initStack(kb kbRoot, config, addr, stage string) {
 }
 
 func (x *liveExec) verifyImage(svc, img string) (string, bool) {
-	release := xynologRelease(svc)
-	digest, err := imageVerifier().Verify(img, release)
-	if err != nil {
-		x.u.Fail("%s does not run: %v", img, err)
-		fmt.Fprintf(os.Stderr, "  An image of Xynolog's runs only when a release built it: %s, run at a release tag (refs/tags/v…).\n", release.Workflow)
-		fmt.Fprintln(os.Stderr, "  Name a released image in the document, or build it on this machine as :local, which runs unverified.")
-		return "", false
-	}
-	return pinnedImage(img, digest), true
+	return verifiedImage(x.u, svc, img)
 }
 
 func (x *liveExec) pull(img string) bool {

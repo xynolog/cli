@@ -614,6 +614,23 @@ func sharedVectorsRole(vectors *vectorStoreDocument) rolePlan {
 		Image: vectors.spec.Image, Memory: vectors.spec.Resources.Limits.Memory, Port: vectors.spec.Port}
 }
 
+// serviceImages: the image each of a knowledge base's own services runs, as
+// its documents name it, and the memory ceiling they state for it: the
+// KnowledgeBase document's gateway, dispatcher and Archivist, the
+// KnowledgeIndex document's Librarian, Smelter and Weaver.
+func serviceImages(kb stack.StackKnowledgeBaseSpec, index stack.KnowledgeIndexSpec) (images, memory map[string]string) {
+	images = map[string]string{
+		"gateway": kb.Gateway.Image, "dispatcher": kb.Dispatcher.Image, "archivist": kb.Archivist.Image,
+		"librarian": index.Librarian.Image, "smelter": index.Smelter.Image, "weaver": index.Weaver.Image,
+	}
+	memory = map[string]string{
+		"gateway": kb.Gateway.Resources.Limits.Memory, "dispatcher": kb.Dispatcher.Resources.Limits.Memory,
+		"archivist": kb.Archivist.Resources.Limits.Memory, "librarian": index.Librarian.Resources.Limits.Memory,
+		"smelter": index.Smelter.Resources.Limits.Memory, "weaver": index.Weaver.Resources.Limits.Memory,
+	}
+	return images, memory
+}
+
 // derivePlan maps a knowledge base's documents to each role's presence.
 // issuer is the issuer's document (issuerOf) for a knowledge base that names
 // the shared issuer, and nil for one that trusts somebody else's. vectors is
@@ -625,21 +642,15 @@ func sharedVectorsRole(vectors *vectorStoreDocument) rolePlan {
 // port block (portBlockOf).
 func derivePlan(st *stack.Stack, issuer *issuerDocument, vectors *vectorStoreDocument, realm string, block int) (*launchPlan, error) {
 	kb, index, files := st.KnowledgeBase.Spec, st.KnowledgeIndex.Spec, st.Files
+	images, memory := serviceImages(kb, index)
 	plan := &launchPlan{
 		Roles:        map[string]rolePlan{},
 		GatewayPort:  kb.Gateway.Port,
 		Block:        block,
 		Inference:    files.Inference,
 		OllamaModels: ollamaModels(st),
-		Images: map[string]string{
-			"gateway": kb.Gateway.Image, "dispatcher": kb.Dispatcher.Image, "archivist": kb.Archivist.Image,
-			"librarian": index.Librarian.Image, "smelter": index.Smelter.Image, "weaver": index.Weaver.Image,
-		},
-		Memory: map[string]string{
-			"gateway": kb.Gateway.Resources.Limits.Memory, "dispatcher": kb.Dispatcher.Resources.Limits.Memory,
-			"archivist": kb.Archivist.Resources.Limits.Memory, "librarian": index.Librarian.Resources.Limits.Memory,
-			"smelter": index.Smelter.Resources.Limits.Memory, "weaver": index.Weaver.Resources.Limits.Memory,
-		},
+		Images:       images,
+		Memory:       memory,
 	}
 
 	// Every provider an engine names is one the Inference document says how

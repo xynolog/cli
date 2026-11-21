@@ -626,6 +626,13 @@ func Stop(u *UI, args []string) int {
 				fmt.Println(renderCmd(rt, "rm", c))
 			}
 		}
+		if roles == nil {
+			for _, rt := range slices.Concat(runtimes, strayRuntimes) {
+				for _, key := range scope.keys {
+					fmt.Printf("# stop and remove each run instance under %s labelled %s=%s\n", rt, runLabel, key)
+				}
+			}
+		}
 		switch {
 		case service != "":
 			fmt.Println("# staged configs left in place (--service)")
@@ -635,6 +642,9 @@ func Stop(u *UI, args []string) int {
 			fmt.Println("# staged configs and stack.json left in place (recorded stack is under " + st.Runtime + ")")
 		default:
 			fmt.Println("# remove staged configs: " + scope.stagingPattern())
+			for _, key := range scope.keys {
+				fmt.Println("# remove the run dirs runs left: " + keyRunDirPattern(key))
+			}
 			if sharedToo {
 				printSharedServicesStop(slices.Concat(runtimes, strayRuntimes), ss, !useState)
 			} else {
@@ -706,6 +716,23 @@ func Stop(u *UI, args []string) int {
 			u.Warn("%s: %d stray container(s) removed (not in the record).", rt, removed)
 		}
 	}
+	// A whole stack's stop takes its run instances with it, recorded or not:
+	// one a control server left running when it was killed holds its name and
+	// its ports (LAUNCHER-CONTROL.md R7).
+	if roles == nil {
+		for _, rt := range slices.Concat(runtimes, strayRuntimes) {
+			for _, key := range scope.keys {
+				for _, c := range runInstances(rt, key) {
+					stopped := runSilent(rt, "stop", c) == nil
+					rmed := runSilent(rt, "rm", c) == nil
+					if stopped || rmed {
+						totalRemoved++
+						u.Ok("%s: run instance %s removed", rt, c)
+					}
+				}
+			}
+		}
+	}
 
 	for _, m := range machineAlong {
 		if stopSharedService(u, installedRuntimes(), sharedContainer(m.role), ss) {
@@ -745,6 +772,17 @@ func Stop(u *UI, args []string) int {
 	removeStaged(staged)
 	if len(staged) > 0 {
 		u.Ok("Removed %d staged config dir(s)", len(staged))
+	}
+	// The env-files and documents of the runs whose instances the sweep
+	// removed: a run's own, which a launcher killed mid-run leaves.
+	if roles == nil {
+		for _, key := range scope.keys {
+			left := runDirs(key)
+			removeStaged(left)
+			if len(left) > 0 {
+				u.Ok("Removed %d run dir(s) a run left", len(left))
+			}
+		}
 	}
 	if st != nil {
 		withoutRealm(u, rootKey(st.KBDid, st.KBRoot))

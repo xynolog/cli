@@ -38,6 +38,9 @@ var controlHandlers = map[string]controlHandler{
 	"settings.set":        controlSettingsSet,
 	"settings.unset":      controlSettingsUnset,
 	"settings.path":       controlSettingsPath,
+	"service.host":        controlServiceHost,
+	"service.run":         controlServiceRun,
+	"service.signal":      controlServiceSignal,
 }
 
 // operate runs req's operation. A panic in it is the launcher's failure, and
@@ -702,4 +705,65 @@ func controlSettingsPath(req *controlRequest, u *UI) (any, *controlFailure) {
 		return nil, failed(u, controlCodeFailed)
 	}
 	return ControlSettingsPathResult{Path: path}, nil
+}
+
+func controlServiceHost(req *controlRequest, u *UI) (any, *controlFailure) {
+	var p ControlServiceHostParams
+	if f := req.decode(&p); f != nil {
+		return nil, f
+	}
+	rt, ok := SelectRuntime(u, given(p.Runtime))
+	if !ok {
+		return nil, failed(u, controlCodeRuntimeUnavailable)
+	}
+	addr, ok := hostAddress(u, rt)
+	if !ok {
+		return nil, failed(u, controlCodeRuntimeUnavailable)
+	}
+	return ControlServiceHostResult{Runtime: rt, Address: addr}, nil
+}
+
+func controlServiceRun(req *controlRequest, u *UI) (any, *controlFailure) {
+	var p ControlServiceRunParams
+	if f := req.decode(&p); f != nil {
+		return nil, f
+	}
+	// A run's variables and its document are the caller's secrets (R5): never
+	// in progress, an error's message or a diagnostic. The instance's own
+	// lines carry them as it writes them.
+	for _, v := range p.Environment {
+		noteSecret(v)
+	}
+	if p.Document != nil {
+		noteSecret(*p.Document)
+	}
+	ended, ok := runService(req.ctx, u, runSpecOf(p), runSink{
+		started: func(s runStarted) {
+			req.server.notify(req, "notifications/serviceStarted", ControlServiceStarted{RequestId: req.id, Instance: p.Instance,
+				Container: s.container, DocumentPath: stated(s.documentPath), Address: s.address})
+			// The instance runs until it exits: the next request takes its
+			// turn meanwhile (C2).
+			req.endTurn()
+		},
+		output: func(stream, line string) {
+			req.server.notify(req, "notifications/serviceOutput", ControlServiceOutput{RequestId: req.id, Instance: p.Instance,
+				Stream: stream, Line: line})
+		},
+	})
+	if !ok {
+		return nil, failed(u, controlCodeFailed)
+	}
+	return ControlServiceRunResult{Instance: p.Instance, ExitCode: ended.exitCode, RanMs: ended.ranMs}, nil
+}
+
+func controlServiceSignal(req *controlRequest, u *UI) (any, *controlFailure) {
+	var p ControlServiceSignalParams
+	if f := req.decode(&p); f != nil {
+		return nil, f
+	}
+	delivered, ok := signalService(u, p.Target.Root, given(p.Runtime), p.Instance, p.Signal)
+	if !ok {
+		return nil, failed(u, controlCodeFailed)
+	}
+	return ControlServiceSignalResult{Delivered: delivered}, nil
 }

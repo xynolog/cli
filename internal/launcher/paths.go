@@ -119,6 +119,37 @@ func keyStagingPattern(key string) string {
 	return pathUnder(systemName(), stagingParent(), stagingPrefix(key)+"*")
 }
 
+// runDirPrefix: what the directory a run of the instance of the knowledge
+// base keyed key makes (run.go) is named with; os.MkdirTemp adds its digits.
+func runDirPrefix(key, instance string) string {
+	return "xynolog-run." + key + "." + instance + "."
+}
+
+// keyRunDirPattern: the run directories of the knowledge base keyed key, as a
+// dry run says they are swept.
+func keyRunDirPattern(key string) string {
+	return pathUnder(systemName(), stagingParent(), "xynolog-run."+key+".*")
+}
+
+// runDirs: the directories runs of the knowledge base keyed key made, each
+// holding a run's env-file and document, which a launcher killed mid-run
+// leaves. A key may begin another's, and an instance's name holds no dot
+// (RunInstance.json), so a dir is this key's only when what follows its key
+// is an instance's name and MkdirTemp's digits alone.
+func runDirs(key string) []string {
+	dirs, _ := filepath.Glob(keyRunDirPattern(key))
+	var out []string
+	for _, d := range dirs {
+		rest := strings.TrimPrefix(filepath.Base(d), "xynolog-run."+key+".")
+		instance, digits, ok := strings.Cut(rest, ".")
+		if ok && instance != "" && strings.Trim(instance, "abcdefghijklmnopqrstuvwxyz0123456789-") == "" &&
+			digits != "" && strings.Trim(digits, "0123456789") == "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // stagedConfigs: the staging dirs a start of the knowledge base keyed key made.
 // A key may begin another's ("example.org" and "example.org.uk"), so a dir is
 // this key's only when what follows its prefix is MkdirTemp's digits alone:

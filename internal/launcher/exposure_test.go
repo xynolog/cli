@@ -18,7 +18,11 @@ var appleContainer = exposure{rt: "container", addr: bridge}
 
 // Every publish the launcher writes goes through exposure: a run builder that
 // spells a publish itself would publish on every interface again, under Apple
-// container as anywhere. `ps -p` and `netstat -p` are not publishes.
+// container as anywhere. `ps -p` and `netstat -p` are not publishes, and nor
+// is a case clause, which reads a command's own --publish.
+// exposurePublish: a call of one of exposure's publishes.
+var exposurePublish = regexp.MustCompile(`\.publish(Run)?\(`)
+
 func TestEveryPublishGoesThroughExposure(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil || len(files) == 0 {
@@ -38,7 +42,10 @@ func TestEveryPublishGoesThroughExposure(t *testing.T) {
 			if !strings.Contains(line, `"-p"`) && !strings.Contains(line, `"--publish"`) {
 				continue
 			}
-			if strings.Contains(line, ".publish(") || strings.Contains(line, `"ps"`) || strings.Contains(line, `"netstat"`) {
+			if exposurePublish.MatchString(line) || strings.Contains(line, `"ps"`) || strings.Contains(line, `"netstat"`) {
+				continue
+			}
+			if strings.HasPrefix(strings.TrimSpace(line), "case ") {
 				continue
 			}
 			if strings.HasPrefix(strings.TrimSpace(line), "//") {
@@ -325,5 +332,16 @@ func TestTheE2EBridgeForwardsWhereTheContainersDial(t *testing.T) {
 		if want := appleContainer.containersPort("gateway", port, plan.GatewayPort); port+offset != want {
 			t.Errorf("the e2e bridge forwards the gateway at %d to %d, want %d: where a container dials it", port, port+offset, want)
 		}
+	}
+}
+
+// A run's port is published at its own number on the host address under
+// Apple container, and on every interface under Docker (R3).
+func TestPublishRunIsOnTheHostAddress(t *testing.T) {
+	if got, want := appleContainer.publishRun("--publish", 9123), []string{"--publish", bridge + ":9123:9123"}; !slices.Equal(got, want) {
+		t.Errorf("Apple container: %v, want %v", got, want)
+	}
+	if got, want := (exposure{rt: "docker", addr: "host.docker.internal"}).publishRun("--publish", 9123), []string{"--publish", "9123:9123"}; !slices.Equal(got, want) {
+		t.Errorf("Docker: %v, want %v", got, want)
 	}
 }

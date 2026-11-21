@@ -28,6 +28,9 @@ Stack lifecycle:
   clean     Remove a root's persistent stack state (databases, event log, secrets)
   roots     List every knowledge base this machine knows
   forget    Drop a root from the registry listing (deletes no files)
+  run       Run one of a KB's own services once, unsupervised, on your
+            document and environment (for the conformance harness)
+  signal    Signal a run's instance: term, or kill
 
 Identity & auth:
   useradd   Create or update a user in the running stack
@@ -132,6 +135,10 @@ func main() {
 		code = launcher.Roots(rest)
 	case "forget":
 		code = launcher.Forget(rest)
+	case "run":
+		code = launcher.Run(rest)
+	case "signal":
+		code = launcher.Signal(rest)
 	case "export":
 		code = launcher.Export(rest)
 	case "import":
