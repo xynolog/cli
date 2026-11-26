@@ -96,10 +96,10 @@ func documentOf(t *testing.T, c stackCase) []byte {
 }
 
 // Every shared case is accepted, or refused where and for the reason it
-// says, as lint:spec-stack holds it to the same schemas; and a refusal names
-// the line it is on. Each case is read many times: the validator visits a
-// map's fields in Go's random order, and a place it names wrongly in one
-// order (santhosh-tekuri/jsonschema#276) must not pass by chance.
+// says; and a refusal names the line it is on. Each case is read many
+// times: the validator visits a map's fields in Go's random order, and a
+// place it names wrongly in one order (santhosh-tekuri/jsonschema#276) must
+// not pass by chance.
 func TestEveryCaseIsReadAsItSays(t *testing.T) {
 	const readings = 32
 	for _, c := range readCases(t) {
