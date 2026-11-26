@@ -35,7 +35,7 @@ func TestBrowseJSONPrintsTheResponseInProcess(t *testing.T) {
 		}
 	})
 	// The reply's response, as the SDK read it: its members in the schema's order.
-	harness.MustContainAll(t, "response", out, `{"limit":20,"offset":0,"resources":[],"total":0}`)
+	harness.MustContainAll(t, "response", out, `{"resources":[],"total":0,"offset":0,"limit":20}`)
 }
 
 func TestBrowseSendsItsFilters(t *testing.T) {

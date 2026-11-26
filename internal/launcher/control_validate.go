@@ -15,6 +15,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
+	"github.com/xynolog/sdk/go/api"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -72,12 +73,12 @@ func (s *controlSchemas) schema(id string) (*jsonschema.Schema, error) {
 // version this launcher does not speak, or not what the method's schema
 // admits.
 func (s *controlSchemas) checkParams(method controlMethod, params json.RawMessage) *controlFailure {
-	invalid := func(message string, fields []ControlFieldFault) *controlFailure {
+	invalid := func(message string, fields []api.FieldFault) *controlFailure {
 		return &controlFailure{code: controlCodeInvalidParams, message: message, fields: fields, rpcCode: rpcInvalidParams}
 	}
 	trimmed := bytes.TrimSpace(params)
 	if len(trimmed) == 0 || trimmed[0] != '{' {
-		return invalid(method.name+"'s params are an object", []ControlFieldFault{{Field: "", Message: "is not an object"}})
+		return invalid(method.name+"'s params are an object", []api.FieldFault{{Field: "", Message: "is not an object"}})
 	}
 	var stated struct {
 		APIVersion *json.RawMessage `json:"apiVersion"`
@@ -134,10 +135,10 @@ var controlEnglish = message.NewPrinter(language.English)
 // schemaFaults: each place a validation error tree refuses, as a JSON pointer
 // and what is wrong there. Under a `oneOf` it names the choice, not each
 // branch's misses.
-func schemaFaults(root *jsonschema.ValidationError) []ControlFieldFault {
-	var faults []ControlFieldFault
+func schemaFaults(root *jsonschema.ValidationError) []api.FieldFault {
+	var faults []api.FieldFault
 	add := func(location []string, said string) {
-		faults = append(faults, ControlFieldFault{Field: jsonPointer(location), Message: said})
+		faults = append(faults, api.FieldFault{Field: jsonPointer(location), Message: said})
 	}
 	var walk func(*jsonschema.ValidationError)
 	walk = func(e *jsonschema.ValidationError) {
@@ -169,7 +170,7 @@ func schemaFaults(root *jsonschema.ValidationError) []ControlFieldFault {
 	}
 	walk(root)
 	if len(faults) == 0 {
-		faults = []ControlFieldFault{{Field: "", Message: root.Error()}}
+		faults = []api.FieldFault{{Field: "", Message: root.Error()}}
 	}
 	return faults
 }

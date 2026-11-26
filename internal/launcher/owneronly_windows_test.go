@@ -14,6 +14,7 @@ import (
 	"github.com/xynolog/cli/internal/launcher/harness"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // inheritsFromItsParent: whether a path's access list still takes entries
@@ -136,9 +137,9 @@ func TestWhatTheLauncherKeepsIsClosedUnderAnOpenHome(t *testing.T) {
 	}
 
 	claims := base64.RawURLEncoding.EncodeToString([]byte(`{"email":"a@example.com","iss":"http://issuer.example/realms/xynolog","exp":4102444800}`))
-	if err := keepSignIn(context.Background(), "local", xynolog.HeldSignIn{
+	if err := keepSignIn(context.Background(), "local", api.StoredSession{
 		Access: "eyJhbGciOiJub25lIn0." + claims + ".c2ln", Refresh: "refresh-1",
-		ClientID: xynolog.ScriptClientID, TokenEndpoint: "http://issuer.example/token",
+		ClientId: xynolog.ScriptClientID, TokenEndpoint: "http://issuer.example/token",
 	}); err != nil {
 		t.Fatal(err)
 	}

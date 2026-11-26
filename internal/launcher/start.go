@@ -46,7 +46,7 @@ func (o startOptions) readsConfig() bool {
 // messages name them.
 func (o startOptions) asked() string {
 	if o.group.name != "" {
-		return "--group " + o.group.name
+		return "--group " + string(o.group.name)
 	}
 	return "--service " + o.starts[0].role
 }

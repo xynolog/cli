@@ -6,8 +6,9 @@ package launcher
 // stdout (protocol/contract/LAUNCHER-CONTROL.md). Every method is one of the
 // launcher's commands, run by the same code the command runs, with the
 // request's UI saying its lines as the request's progress. The methods, their
-// schemas and the notifications are protocol/specs/src/control's, generated
-// into control_types_gen.go and control_schemas_gen.go.
+// schemas and the notifications are protocol/specs/src/control's: their types
+// are the SDK's api package's, and their schemas are generated into
+// control_schemas_gen.go.
 //
 // stdout is the protocol's alone: the process's os.Stdout and os.Stderr are
 // pipes while it serves, and what an operation prints to either is its
@@ -30,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 const controlUsage = `Usage: xynolog control
@@ -131,7 +134,7 @@ type controlServer struct {
 
 // controlRequest: one request in flight.
 type controlRequest struct {
-	id     json.RawMessage
+	id     api.RequestId
 	key    string
 	method controlMethod
 	params json.RawMessage
@@ -320,8 +323,13 @@ func (s *controlServer) receive(line []byte) {
 		s.reply(msg.ID, nil, failure.rpc())
 		return
 	}
+	var id api.RequestId
+	if err := json.Unmarshal(msg.ID, &id); err != nil {
+		s.reply(msg.ID, nil, &rpcError{Code: rpcInvalidRequest, Message: "a request's id could not be read: " + err.Error()})
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	req := &controlRequest{id: msg.ID, key: key, method: method, params: msg.Params, ctx: ctx, cancel: cancel, server: s}
+	req := &controlRequest{id: id, key: key, method: method, params: msg.Params, ctx: ctx, cancel: cancel, server: s}
 	s.mu.Lock()
 	if _, busy := s.inFlight[key]; busy {
 		s.mu.Unlock()
@@ -373,12 +381,17 @@ func (s *controlServer) notified(method string, params json.RawMessage) {
 		fmt.Fprintf(s.diag, "control: ignored a cancellation whose params are not Cancelled's: %s\n", failure.message)
 		return
 	}
-	var cancelled ControlCancelled
+	var cancelled api.Cancelled
 	if err := json.Unmarshal(params, &cancelled); err != nil {
 		fmt.Fprintf(s.diag, "control: ignored a cancellation: %v\n", err)
 		return
 	}
-	key, ok := requestKey(cancelled.RequestId)
+	id, err := cancelled.RequestId.MarshalJSON()
+	if err != nil {
+		fmt.Fprintf(s.diag, "control: ignored a cancellation: %v\n", err)
+		return
+	}
+	key, ok := requestKey(id)
 	if !ok {
 		return
 	}
@@ -498,13 +511,13 @@ func (s *controlServer) answer(req *controlRequest, result any, failure *control
 
 // rpcError: a JSON-RPC error object.
 type rpcError struct {
-	Code    int               `json:"code"`
-	Message string            `json:"message"`
-	Data    *ControlErrorData `json:"data,omitempty"`
+	Code    int            `json:"code"`
+	Message string         `json:"message"`
+	Data    *api.ErrorData `json:"data,omitempty"`
 }
 
 // reply writes a response: id null for a request whose id could not be read.
-func (s *controlServer) reply(id json.RawMessage, result json.RawMessage, failure *rpcError) {
+func (s *controlServer) reply(id json.Marshaler, result json.RawMessage, failure *rpcError) {
 	if id == nil {
 		id = json.RawMessage("null")
 	}
@@ -563,8 +576,8 @@ func (s *controlServer) write(message any) {
 
 // progress sends one line of req's progress, as a person would read it,
 // without colour and without a secret value the launcher knows.
-func (req *controlRequest) progress(kind, text string) {
-	req.server.notify(req, "notifications/progress", ControlProgress{RequestId: req.id, Kind: kind, Text: scrubSecrets(stripANSI(text))})
+func (req *controlRequest) progress(kind api.ProgressKind, text string) {
+	req.server.notify(req, "notifications/progress", api.Progress{RequestId: req.id, Kind: kind, Text: scrubSecrets(stripANSI(text))})
 }
 
 // ui: the UI req's operation speaks through, each line its progress.
@@ -577,8 +590,8 @@ type controlFailure struct {
 	code        string
 	message     string
 	retryable   bool
-	choices     []ControlTarget
-	fields      []ControlFieldFault
+	choices     []api.Target
+	fields      []api.FieldFault
 	supported   []string
 	mayStillRun *bool
 	rpcCode     int // 0: rpcOperationError
@@ -589,9 +602,9 @@ func (f *controlFailure) rpc() *rpcError {
 	if code == 0 {
 		code = rpcOperationError
 	}
-	return &rpcError{Code: code, Message: f.message, Data: &ControlErrorData{
-		Code: f.code, Retryable: f.retryable, Choices: f.choices, Fields: f.fields,
-		Supported: f.supported, MayStillRun: f.mayStillRun,
+	return &rpcError{Code: code, Message: f.message, Data: &api.ErrorData{
+		Code: f.code, Retryable: f.retryable, Choices: listed(f.choices), Fields: listed(f.fields),
+		Supported: listed(f.supported), MayStillRun: f.mayStillRun,
 	}}
 }
 

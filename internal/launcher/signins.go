@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // tokensPath is the sign-in store's file; "" when there is no state home.
@@ -53,7 +54,7 @@ func LoadTokens() map[string]xynolog.SignIn {
 // keepSignIn keeps the sign-in of the stack key. The store keeps the state
 // home to its owner before it writes, with everything created in it from then
 // on: the store's file, its lock, and what a renewal writes in their place.
-func keepSignIn(ctx context.Context, key string, held xynolog.HeldSignIn) error {
+func keepSignIn(ctx context.Context, key string, held api.StoredSession) error {
 	store, ok := signInStore()
 	if !ok {
 		return errors.New("there is no state home to keep the session in")

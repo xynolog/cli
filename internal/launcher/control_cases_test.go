@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // lockedBuffer: a bytes.Buffer the server's goroutines write to at once.
@@ -63,11 +65,11 @@ func validationServer(t *testing.T) (*controlServer, *lockedBuffer) {
 		return func(*controlRequest, *UI) (any, *controlFailure) {
 			switch method {
 			case "launcher.about":
-				return ControlAboutResult{Development: true, ApiVersions: []string{controlAPIVersion}, ImageRegistry: imageRegistry, Runtimes: []ControlRuntimeState{}}, nil
+				return api.AboutResult{Development: true, ApiVersions: []string{controlAPIVersion}, ImageRegistry: imageRegistry, Runtimes: []api.RuntimeState{}}, nil
 			case "identity.useradd":
-				return ControlIdentityUseraddResult{Email: "person@example.com", Identity: "did:web:example.com:users:1", Created: true}, nil
+				return api.IdentityUseraddResult{Email: "person@example.com", Identity: "did:web:example.com:users:1", Created: true}, nil
 			case "identity.users.list":
-				return ControlIdentityUsersListResult{Users: []ControlIdentityUser{}}, nil
+				return api.IdentityUsersListResult{Users: []api.IdentityUser{}}, nil
 			default:
 				return map[string]any{}, nil
 			}
@@ -167,8 +169,10 @@ func TestControlRequestCases(t *testing.T) {
 				t.Errorf("data %s retryable %v, want %s retryable %v", data.Code, data.Retryable, want.Data.Code, want.Data.Retryable)
 			}
 			var fields []string
-			for _, f := range data.Fields {
-				fields = append(fields, f.Field)
+			if data.Fields != nil {
+				for _, f := range *data.Fields {
+					fields = append(fields, f.Field)
+				}
 			}
 			slices.Sort(fields)
 			wantFields := slices.Clone(want.Data.Fields)
@@ -176,8 +180,12 @@ func TestControlRequestCases(t *testing.T) {
 			if !slices.Equal(fields, wantFields) {
 				t.Errorf("fields %v, want %v", fields, wantFields)
 			}
-			if !slices.Equal(data.Supported, want.Data.Supported) {
-				t.Errorf("supported %v, want %v", data.Supported, want.Data.Supported)
+			var supported []string
+			if data.Supported != nil {
+				supported = *data.Supported
+			}
+			if !slices.Equal(supported, want.Data.Supported) {
+				t.Errorf("supported %v, want %v", supported, want.Data.Supported)
 			}
 		})
 	}

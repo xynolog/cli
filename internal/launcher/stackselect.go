@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // SelectVerbStack resolves a verb's target: the recorded stack it acts on — a
@@ -86,15 +88,15 @@ func SelectVerbStack(u *UI, verb string, ss *StackSet, repo, root string, wantLo
 
 // stackChoices: the targets that name each of the stacks, for a refusal to
 // choose among them.
-func stackChoices(locals, cs []*StackState) []ControlTarget {
-	var out []ControlTarget
+func stackChoices(locals, cs []*StackState) []api.Target {
+	var out []api.Target
 	for _, st := range locals {
 		root := st.KBRoot
-		out = append(out, ControlTarget{Kind: "local", Root: &root})
+		out = append(out, api.Target{Kind: "local", Root: &root})
 	}
 	for _, c := range cs {
 		repo := c.Codespace.Repo
-		out = append(out, ControlTarget{Kind: "codespace", Repo: &repo})
+		out = append(out, api.Target{Kind: "codespace", Repo: &repo})
 	}
 	return out
 }
@@ -104,10 +106,10 @@ func stackChoices(locals, cs []*StackState) []ControlTarget {
 func refuseRoot(u *UI, err error) {
 	var ambiguous *ambiguousRoot
 	if errors.As(err, &ambiguous) {
-		var choices []ControlTarget
+		var choices []api.Target
 		for _, p := range ambiguous.paths {
 			path := p
-			choices = append(choices, ControlTarget{Kind: "local", Root: &path})
+			choices = append(choices, api.Target{Kind: "local", Root: &path})
 		}
 		u.RefuseChoosing(controlCodeTargetAmbiguous, choices, "%v", err)
 		return

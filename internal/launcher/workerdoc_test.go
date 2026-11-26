@@ -155,8 +155,8 @@ func TestWorkerDocumentStatesWhatThePlacementDecides(t *testing.T) {
 	doc := workerDocumentOf(t, p)
 	kb := theKB(t, doc)
 	want := []string{
+		"anthropic/claude-haiku-4-5-20251001: mark.highlighting mark.commenting mark.tagging",
 		"anthropic/claude-sonnet-4-5-20250929: mark.assessing mark.linking yield",
-		"anthropic/claude-haiku-4-5-20251001: mark.commenting mark.highlighting mark.tagging",
 	}
 	if got := jobsOfEngines(t, kb.Engines); !reflect.DeepEqual(got, want) {
 		t.Errorf("engines =\n  %s\nwant\n  %s", strings.Join(got, "\n  "), strings.Join(want, "\n  "))
@@ -198,9 +198,9 @@ func TestWorkerDocumentGroupsJobsByEngineInJobOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"ollama/gemma4:26b: mark.assessing mark.linking yield",
-		"ollama/gemma4:e2b: mark.commenting mark.tagging",
 		"anthropic/claude-haiku-4-5-20251001: mark.highlighting",
+		"ollama/gemma4:e2b: mark.commenting mark.tagging",
+		"ollama/gemma4:26b: mark.assessing mark.linking yield",
 	}
 	if got := jobsOfEngines(t, theKB(t, workerDocumentFrom(t, b)).Engines); !reflect.DeepEqual(got, want) {
 		t.Errorf("engines =\n  %s\nwant\n  %s", strings.Join(got, "\n  "), strings.Join(want, "\n  "))
@@ -361,7 +361,7 @@ func TestWorkerDocumentNamesTheKeyOfEveryProviderThatStatesOne(t *testing.T) {
 			t.Errorf("the ollama engine %s's apiKeyEnv = %v, want the key its entry names", engine.Engine.Model, engine.ApiKeyEnv)
 		}
 	}
-	if got := strings.Join(workerSecrets(p), ","); got != "OLLAMA_API_KEY,ANTHROPIC_API_KEY" {
+	if got := strings.Join(workerSecrets(p), ","); got != "ANTHROPIC_API_KEY,OLLAMA_API_KEY" {
 		t.Errorf("the worker is handed %q, want exactly the names its document carries", got)
 	}
 }

@@ -14,10 +14,10 @@ import (
 
 // statusSnapshot: each knowledge base of views and of codespaces, and the
 // services they share.
-func statusSnapshot(ss *StackSet, views []stackView, cwd kbRoot, codespaces []*StackState) ControlStatusSnapshotResult {
+func statusSnapshot(ss *StackSet, views []stackView, cwd kbRoot, codespaces []*StackState) api.StatusSnapshotResult {
 	published := publishedKBs(ss)
 	tokens := LoadTokens()
-	out := ControlStatusSnapshotResult{KnowledgeBases: []ControlKnowledgeBaseStatus{}, Shared: sharedStatuses(views, ss)}
+	out := api.StatusSnapshotResult{KnowledgeBases: []api.KnowledgeBaseStatus{}, Shared: sharedStatuses(views, ss)}
 	for _, v := range views {
 		if v.st == nil && v.key == "" {
 			continue // no knowledge base: only the shared services are asked of
@@ -33,9 +33,9 @@ func statusSnapshot(ss *StackSet, views []stackView, cwd kbRoot, codespaces []*S
 // knowledgeBaseStatus: v's knowledge base, and each of its own services, group
 // by group, then the issuer it signs in at. A view no stack is recorded for is
 // cwd's, discovered by its containers' names.
-func knowledgeBaseStatus(v stackView, ss *StackSet, cwd kbRoot, published []publishedKB, tokens map[string]xynolog.SignIn) ControlKnowledgeBaseStatus {
-	kb := ControlKnowledgeBaseStatus{Name: v.name, Key: v.key, Recorded: v.st != nil,
-		Placement: api.DiscoveredKBPlacementLocal, Services: []ControlServiceStatus{}}
+func knowledgeBaseStatus(v stackView, ss *StackSet, cwd kbRoot, published []publishedKB, tokens map[string]xynolog.SignIn) api.KnowledgeBaseStatus {
+	kb := api.KnowledgeBaseStatus{Name: v.name, Key: v.key, Recorded: v.st != nil,
+		Placement: api.KnowledgeBaseStatusPlacementLocal, Services: []api.ServiceStatus{}}
 	st := v.st
 	root := cwd.dir
 	if st != nil {
@@ -54,7 +54,7 @@ func knowledgeBaseStatus(v stackView, ss *StackSet, cwd kbRoot, published []publ
 	if st != nil {
 		// The record's identity is what was started.
 		kb.Did = stated(st.KBDid)
-		kb.Runtime = stated(st.Runtime)
+		kb.Runtime = stated(api.Runtime(st.Runtime))
 		if base, err := GatewayBase(st); err == nil {
 			kb.Gateway = &base
 		}
@@ -95,23 +95,23 @@ func knowledgeBaseStatus(v stackView, ss *StackSet, cwd kbRoot, published []publ
 // workloadStatus: the same knowledge-base-scoped Collector readings
 // xynolog status prints under Gateway and Dispatcher. Missing Prometheus
 // series stay absent; a scrape that has not reported is not a zero.
-func workloadStatus(v stackView, did string, services []ControlServiceStatus, readout *lazyBody) *ControlWorkloadStatus {
+func workloadStatus(v stackView, did string, services []api.ServiceStatus, readout *lazyBody) *api.WorkloadStatus {
 	hasGateway := serviceHealthy(services, "gateway")
 	hasDispatcher := serviceHealthy(services, "dispatcher")
 	if !hasGateway && !hasDispatcher {
 		return nil
 	}
 	body := readout.get()
-	var out ControlWorkloadStatus
+	var out api.WorkloadStatus
 	if hasGateway {
 		if claims, capacity, ok := ledgerOccupancy(body, did); ok {
-			out.Ledger = &ControlWorkloadStatusLedger{Claims: claims, Capacity: capacity}
+			out.Ledger = &api.WorkloadStatusLedger{Claims: claims, Capacity: capacity}
 		}
 	}
 	if hasDispatcher {
 		pending, running, ok := queueDepth(body, did)
 		if ok {
-			queue := &ControlWorkloadStatusQueue{Pending: pending, Running: running}
+			queue := &api.WorkloadStatusQueue{Pending: pending, Running: running}
 			if completed, failed, found := jobsConcluded(body, did); found {
 				queue.Completed = &completed
 				queue.Failed = &failed
@@ -125,7 +125,7 @@ func workloadStatus(v stackView, did string, services []ControlServiceStatus, re
 	return &out
 }
 
-func serviceHealthy(services []ControlServiceStatus, role string) bool {
+func serviceHealthy(services []api.ServiceStatus, role string) bool {
 	for _, service := range services {
 		if service.Role == role {
 			return service.Healthy
@@ -136,10 +136,10 @@ func serviceHealthy(services []ControlServiceStatus, role string) bool {
 
 // codespaceStatus: a codespace's knowledge base, as this machine reaches it
 // through its forward. Its services are its own launcher's to report.
-func codespaceStatus(c *StackState, recorded bool, published []publishedKB, tokens map[string]xynolog.SignIn) ControlKnowledgeBaseStatus {
+func codespaceStatus(c *StackState, recorded bool, published []publishedKB, tokens map[string]xynolog.SignIn) api.KnowledgeBaseStatus {
 	repo := c.Codespace.Repo
-	kb := ControlKnowledgeBaseStatus{Name: repo, Key: StackKey(c), Recorded: recorded,
-		Placement: api.DiscoveredKBPlacementCodespace, Repo: &repo, Did: stated(c.KBDid), Services: []ControlServiceStatus{}}
+	kb := api.KnowledgeBaseStatus{Name: repo, Key: StackKey(c), Recorded: recorded,
+		Placement: api.KnowledgeBaseStatusPlacementCodespace, Repo: &repo, Did: stated(c.KBDid), Services: []api.ServiceStatus{}}
 	if base, err := CodespaceBase(c); err == nil {
 		kb.Gateway = &base
 		kb.Healthy = httpOK(base + "/api/health")
@@ -162,23 +162,23 @@ func publishedEntry(published []publishedKB, st *StackState) *api.DiscoveredKB {
 
 // sessionOf: the launcher's stored sign-in for the stack key, as the gateway
 // at base judges its token; unverified when there is no base to ask.
-func sessionOf(key string, base *string, tokens map[string]xynolog.SignIn) *ControlSession {
+func sessionOf(key string, base *string, tokens map[string]xynolog.SignIn) *api.Session {
 	held, ok := tokens[key]
 	if !ok {
-		return &ControlSession{State: sessionNone}
+		return &api.Session{State: api.SessionStateNone}
 	}
-	state := sessionUnverified
+	state := api.SessionStateUnverified
 	if base != nil {
 		state = storedTokenState(*base, held.Token)
 	}
-	return &ControlSession{State: state, Email: stated(held.Email)}
+	return &api.Session{State: state, Email: stated(held.Email)}
 }
 
 // sharedStatuses: the services the knowledge bases of views share, group by
 // group, each once, then each the machine serves for the knowledge bases that
 // name it. The Browser is reported and never counted.
-func sharedStatuses(views []stackView, ss *StackSet) []ControlServiceStatus {
-	out := []ControlServiceStatus{}
+func sharedStatuses(views []stackView, ss *StackSet) []api.ServiceStatus {
+	out := []api.ServiceStatus{}
 	for _, g := range serviceGroups {
 		if !g.shared() {
 			continue
@@ -219,7 +219,7 @@ func sharedStatuses(views []stackView, ss *StackSet) []ControlServiceStatus {
 }
 
 // groupOf: the group role belongs to.
-func groupOf(role string) string {
+func groupOf(role string) api.ServiceGroup {
 	for _, g := range serviceGroups {
 		if contains(g.roles, role) {
 			return g.name
@@ -231,8 +231,8 @@ func groupOf(role string) string {
 // serviceStatus: r, a row of group, as the control API states a service.
 // counted: whether its health is its knowledge base's; serves: the knowledge
 // bases a shared service serves.
-func serviceStatus(r statusRow, group string, counted bool, serves []string) ControlServiceStatus {
-	s := ControlServiceStatus{Role: r.role, Group: group, Product: stated(r.product), Healthy: r.healthy, Counted: counted, Serves: serves}
+func serviceStatus(r statusRow, group api.ServiceGroup, counted bool, serves []string) api.ServiceStatus {
+	s := api.ServiceStatus{Role: r.role, Group: group, Product: stated(r.product), Healthy: r.healthy, Counted: counted, Serves: listed(serves)}
 	if r.unconfigured {
 		s.State = "not-configured"
 		return s
@@ -242,7 +242,7 @@ func serviceStatus(r statusRow, group string, counted bool, serves []string) Con
 	}
 	switch r.word {
 	case "running", "reachable", "unreachable", "absent":
-		s.State = r.word
+		s.State = api.ServiceStatusState(r.word)
 	default:
 		s.State = "stopped"
 		s.ContainerState = stated(r.word)

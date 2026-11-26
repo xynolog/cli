@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/xynolog/cli/internal/launcher/stack"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // setting: one setting `xynolog settings` lists.
@@ -24,7 +25,7 @@ type setting struct {
 	// secret-store --default.
 	flag string
 	// appliesTo: every knowledge base on this machine, or one.
-	appliesTo string
+	appliesTo api.SettingAppliesTo
 	// show: the value in effect and where it came from, one line per value.
 	show func(u *UI, kb kbRoot) []settingLine
 	// saves: the registry fields the setting is kept in — the census's
@@ -57,30 +58,23 @@ func settingRowText(u *UI, label string, l settingLine) string {
 	return fmt.Sprintf("  %-24s %s\n  %-24s %s\n", label, l.value, "", u.Dim(l.source))
 }
 
-// What a setting applies to, as protocol/specs/src/control/Setting.json
-// names it.
-const (
-	appliesToMachine = "machine"
-	appliesToKB      = "knowledge-base"
-)
-
 var settingsTable = []setting{
-	{name: "runtime", appliesTo: appliesToMachine, show: showRuntime, saves: []string{"rootsRegistry.Runtime"},
+	{name: "runtime", appliesTo: api.SettingAppliesToMachine, show: showRuntime, saves: []string{"rootsRegistry.Runtime"},
 		set: setRuntime, unset: unsetRuntime},
-	{name: "browser", appliesTo: appliesToMachine, show: showBrowserDocument, changedBy: editBrowserDocument},
-	{name: "worker", appliesTo: appliesToMachine, show: showWorkerPoolDocument, changedBy: editWorkerPoolDocument},
-	{name: "issuer", appliesTo: appliesToMachine, show: showIssuerDocument, changedBy: editIssuerDocument},
-	{name: "vectors", appliesTo: appliesToMachine, show: showVectorStoreDocument, changedBy: editVectorStoreDocument},
-	{name: "keycloak-port", appliesTo: appliesToMachine, show: showKeycloakPort, set: setKeycloakPort, unset: unsetKeycloakPort},
-	{name: "network", appliesTo: appliesToMachine, show: showNetwork, saves: []string{"rootsRegistry.Network"},
+	{name: "browser", appliesTo: api.SettingAppliesToMachine, show: showBrowserDocument, changedBy: editBrowserDocument},
+	{name: "worker", appliesTo: api.SettingAppliesToMachine, show: showWorkerPoolDocument, changedBy: editWorkerPoolDocument},
+	{name: "issuer", appliesTo: api.SettingAppliesToMachine, show: showIssuerDocument, changedBy: editIssuerDocument},
+	{name: "vectors", appliesTo: api.SettingAppliesToMachine, show: showVectorStoreDocument, changedBy: editVectorStoreDocument},
+	{name: "keycloak-port", appliesTo: api.SettingAppliesToMachine, show: showKeycloakPort, set: setKeycloakPort, unset: unsetKeycloakPort},
+	{name: "network", appliesTo: api.SettingAppliesToMachine, show: showNetwork, saves: []string{"rootsRegistry.Network"},
 		set: setNetwork, unset: unsetNetwork},
-	{name: "secret", appliesTo: appliesToMachine, show: showSecretSources, saves: []string{"rootsRegistry.Secrets"},
+	{name: "secret", appliesTo: api.SettingAppliesToMachine, show: showSecretSources, saves: []string{"rootsRegistry.Secrets"},
 		changedBy: func() string { return "its own commands: xynolog settings secret --help" }},
-	{name: "secret-store", flag: "--default", appliesTo: appliesToMachine, show: showDefaultSecretStore,
+	{name: "secret-store", flag: "--default", appliesTo: api.SettingAppliesToMachine, show: showDefaultSecretStore,
 		saves: []string{"storeSettingsFile.Default"}, set: setDefaultSecretStore, unset: unsetDefaultSecretStore},
-	{name: "config", appliesTo: appliesToKB, show: showConfig, saves: []string{"rootEntry.Config"},
+	{name: "config", appliesTo: api.SettingAppliesToKnowledgeBase, show: showConfig, saves: []string{"rootEntry.Config"},
 		set: setConfig, unset: unsetConfig},
-	{name: "secret-store", appliesTo: appliesToKB, show: showSecretStoreSetting, saves: []string{"storeSettingsFile.Roots"},
+	{name: "secret-store", appliesTo: api.SettingAppliesToKnowledgeBase, show: showSecretStoreSetting, saves: []string{"storeSettingsFile.Roots"},
 		set: setSecretStore, unset: unsetSecretStore, detail: showSecretStoreLocations},
 }
 
@@ -243,7 +237,7 @@ func Settings(args []string) int {
 		return 0
 	}
 
-	for _, appliesTo := range []string{appliesToMachine, appliesToKB} {
+	for _, appliesTo := range []api.SettingAppliesTo{api.SettingAppliesToMachine, api.SettingAppliesToKnowledgeBase} {
 		var applying []setting
 		for _, s := range rows {
 			if s.appliesTo == appliesTo {
@@ -254,7 +248,7 @@ func Settings(args []string) int {
 			continue
 		}
 		switch {
-		case appliesTo == appliesToMachine:
+		case appliesTo == api.SettingAppliesToMachine:
 			fmt.Println(u.Bold("This machine"))
 		case rootErr != nil:
 			fmt.Println(u.Bold("A knowledge base"))
@@ -314,7 +308,7 @@ func settingsRoot(u *UI, rootArg string) (kbRoot, error, bool) {
 // refuseUnrooted refuses s, a knowledge-base setting, when no knowledge base
 // resolved (rootErr says why).
 func refuseUnrooted(u *UI, s setting, rootErr error) bool {
-	if s.appliesTo == appliesToKB && rootErr != nil {
+	if s.appliesTo == api.SettingAppliesToKnowledgeBase && rootErr != nil {
 		u.Refuse(controlCodeRootNotFound, "%s is a knowledge-base setting: run inside one, or pass --root. (%v)", s.name, rootErr)
 		return true
 	}

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xynolog/cli/internal/launcher/harness"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // onBareMachine: a machine with no launcher state, no settings and nothing on
@@ -44,7 +45,11 @@ func answered(t *testing.T, method, params string) (answer controlAnswer, diag s
 	s, protocol := codecServer(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	req := &controlRequest{id: json.RawMessage(`7`), key: "7", method: m, params: json.RawMessage(params),
+	var id api.RequestId
+	if err := json.Unmarshal([]byte(`7`), &id); err != nil {
+		t.Fatal(err)
+	}
+	req := &controlRequest{id: id, key: "7", method: m, params: json.RawMessage(params),
 		ctx: ctx, cancel: cancel, server: s}
 	result, failure := req.operate()
 	s.answer(req, result, failure)
@@ -143,9 +148,9 @@ func TestControlOperationsRefuseUnderTheirCodes(t *testing.T) {
 func TestControlRootsListOfABareMachine(t *testing.T) {
 	onBareMachine(t)
 	answer, _ := answered(t, "roots.list", `{}`)
-	var list ControlRootsListResult
+	var list api.RootsListResult
 	resultOf(t, answer, &list)
-	if len(list.Roots) != 0 || len(list.Warnings) != 0 {
+	if len(list.Roots) != 0 || list.Warnings != nil {
 		t.Errorf("roots.list = %+v, want no roots and no warnings", list)
 	}
 }
@@ -154,7 +159,7 @@ func TestControlRootsListOfABareMachine(t *testing.T) {
 func TestControlAuthLogoutWithNoStack(t *testing.T) {
 	onBareMachine(t)
 	answer, _ := answered(t, "auth.logout", `{}`)
-	var ended ControlAuthLogoutResult
+	var ended api.AuthLogoutResult
 	resultOf(t, answer, &ended)
 	if ended.Key != nil {
 		t.Errorf("auth.logout named stack %s, and none is recorded", *ended.Key)
@@ -166,7 +171,7 @@ func TestControlAuthLogoutWithNoStack(t *testing.T) {
 func TestControlSettingsListOutsideAKnowledgeBase(t *testing.T) {
 	onBareMachine(t)
 	answer, _ := answered(t, "settings.list", `{}`)
-	var list ControlSettingsListResult
+	var list api.SettingsListResult
 	resultOf(t, answer, &list)
 	if list.Root != nil || list.Unresolved == nil {
 		t.Errorf("root %v, unresolved %v: want no root, and why", list.Root, list.Unresolved)
@@ -175,7 +180,7 @@ func TestControlSettingsListOutsideAKnowledgeBase(t *testing.T) {
 		t.Fatal("no settings listed")
 	}
 	for _, s := range list.Settings {
-		if s.AppliesTo != appliesToMachine {
+		if s.AppliesTo != api.SettingAppliesToMachine {
 			t.Errorf("%s applies to %s, and no knowledge base resolved", s.Name, s.AppliesTo)
 		}
 	}
@@ -190,7 +195,7 @@ func TestControlSettingsGetSetUnset(t *testing.T) {
 		{"settings.unset", `{"name":"keycloak-port"}`, ""},
 	} {
 		answer, _ := answered(t, step.method, step.params)
-		var s ControlSetting
+		var s api.Setting
 		resultOf(t, answer, &s)
 		if s.Name != "keycloak-port" || !s.Settable || len(s.Values) != 1 {
 			t.Fatalf("%s = %+v", step.method, s)
@@ -209,7 +214,7 @@ func TestControlSettingsPathOfEachDocument(t *testing.T) {
 	home := onBareMachine(t)
 	for document := range machineDocuments {
 		answer, _ := answered(t, "settings.path", `{"document":"`+document+`"}`)
-		var p ControlSettingsPathResult
+		var p api.SettingsPathResult
 		resultOf(t, answer, &p)
 		if !strings.HasPrefix(p.Path, home) {
 			t.Errorf("%s's document is at %s, outside the machine's home %s", document, p.Path, home)
@@ -235,7 +240,7 @@ func TestControlOperationThatPanicsFailsItsRequest(t *testing.T) {
 
 func TestControlIdentityUseraddForTarget(t *testing.T) {
 	target := &StackState{KBRoot: "/kb", KBDid: "did:web:kb.example"}
-	params := ControlIdentityUseraddParams{Email: "person@example.org"}
+	params := api.IdentityUseraddParams{Email: "person@example.org"}
 	run := func(_ *UI, got useraddOpts, password, root, did string) (useraddResult, int) {
 		if got.email != params.Email || password != "secret" || root != target.KBRoot || did != target.KBDid {
 			t.Fatalf("useradd arguments = %+v, %q, %q, %q", got, password, root, did)
@@ -294,7 +299,7 @@ func TestControlIdentityUseraddForTarget(t *testing.T) {
 		if failure != nil {
 			t.Fatalf("failure = %+v", failure)
 		}
-		got := result.(ControlIdentityUseraddResult)
+		got := result.(api.IdentityUseraddResult)
 		if got.Email != params.Email || got.Identity == "" || !got.Created || got.GeneratedPassword == nil || *got.GeneratedPassword != "one-time" {
 			t.Fatalf("result = %+v", got)
 		}
@@ -343,7 +348,7 @@ func TestControlIdentityUsersListForTarget(t *testing.T) {
 		if failure != nil {
 			t.Fatalf("failure = %+v", failure)
 		}
-		got := result.(ControlIdentityUsersListResult)
+		got := result.(api.IdentityUsersListResult)
 		if len(got.Users) != 1 || got.Users[0].Email != "person@example.org" || got.Users[0].Identity != "did:web:kb.example:users:123" || !got.Users[0].Enabled {
 			t.Fatalf("users = %+v", got.Users)
 		}
