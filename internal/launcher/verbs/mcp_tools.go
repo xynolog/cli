@@ -172,7 +172,7 @@ var mcpHandlers = map[string]mcpHandler{
 		ResourceId         api.ResourceId              `json:"resourceId"`
 		ReferenceId        api.AnnotationId            `json:"referenceId"`
 		Gather             api.GatherAnnotationOptions `json:"gather"`
-		Limit              int                         `json:"limit"`
+		Limit              *int                        `json:"limit"`
 		UseSemanticScoring *bool                       `json:"useSemanticScoring"`
 	}) (mcpAnswer, error) {
 		c := call.client()
@@ -180,7 +180,7 @@ var mcpHandlers = map[string]mcpHandler{
 		if err != nil {
 			return mcpAnswer{}, err
 		}
-		found, err := c.Match.Search(args.ResourceId, args.ReferenceId, gathered.Response, xynolog.MatchSearchOptions{Limit: args.Limit, UseSemanticScoring: args.UseSemanticScoring}).Wait(ctx)
+		found, err := c.Match.Search(args.ResourceId, args.ReferenceId, gathered.Response, api.MatchSearchOptions{Limit: args.Limit, UseSemanticScoring: args.UseSemanticScoring}).Wait(ctx)
 		return mcpAnswer{structured: found}, err
 	}),
 

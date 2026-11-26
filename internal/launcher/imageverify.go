@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/xynolog/cli/internal/launcher/provenance"
@@ -28,6 +30,20 @@ func pinnedImage(img, digest string) string {
 		return img
 	}
 	return img + "@" + digest
+}
+
+// verifiedImage: svc's image img as it runs once its attestation is verified,
+// pinned by its digest. ok=false: refused, and said.
+func verifiedImage(u *UI, svc, img string) (string, bool) {
+	release := xynologRelease(svc)
+	digest, err := imageVerifier().Verify(img, release)
+	if err != nil {
+		u.Fail("%s does not run: %v", img, err)
+		fmt.Fprintf(os.Stderr, "  An image of Xynolog's runs only when a release built it: %s, run at a release tag (refs/tags/v…).\n", release.Workflow)
+		fmt.Fprintln(os.Stderr, "  Name a released image in the document, or build it on this machine as :local, which runs unverified.")
+		return "", false
+	}
+	return pinnedImage(img, digest), true
 }
 
 // verifyStackImages verifies the image of each of svcs before anything of the

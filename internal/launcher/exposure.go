@@ -119,6 +119,17 @@ func (e exposure) publish(flag, role string, hostPort, ctrPort int) []string {
 	return args
 }
 
+// publishRun: a run's port, published at its own number where its caller and
+// its instance meet (LAUNCHER-CONTROL.md R3): on the host address under a
+// confined runtime, on every interface otherwise. A run's instance is no
+// role of the stack's; its caller dials it, on this machine.
+func (e exposure) publishRun(flag string, port int) []string {
+	if e.confined() {
+		return []string{flag, fmt.Sprintf("%s:%d:%d", e.addr, port, port)}
+	}
+	return []string{flag, fmt.Sprintf("%d:%d", port, port)}
+}
+
 // containersPort: the host port a container dials role's port at, published
 // at hostPort to ctrPort — its own, or the containers' side of a port a
 // person dials too.

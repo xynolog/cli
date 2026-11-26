@@ -39,6 +39,7 @@
 //	FAKERT_PULL_FAIL         substring; pulls of matching images fail
 //	FAKERT_DAEMON_DOWN       "1": every runtime command fails XPC-style;
 //	                         `container system status` reports the apiserver down
+//	FAKERT_RUN_*, FAKERT_IMAGE_CMD  a run's instance, attached (runs.go)
 //
 // A detached `run -d ... -p A:B` spawns this binary in __serve mode listening
 // on every published host port: it answers the routes that container serves,
@@ -63,6 +64,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1305,6 +1307,9 @@ func runtimeCmd(base string, args []string) {
 		// serve pidfile (run-created) or a scripted FAKERT_STATE container
 		// that hasn't been rm'd.
 		name := handleName(args[len(args)-1])
+		if stopRunCtr(name) {
+			return
+		}
 		existed := killServe(name)
 		if scriptedAlive(name) {
 			existed = true
@@ -1317,6 +1322,9 @@ func runtimeCmd(base string, args []string) {
 		// rm releases the NAME: record the removal marker so a later
 		// `run --name` stops conflicting (see the name-holding check in run).
 		name := handleName(args[len(args)-1])
+		if rmRunCtr(name) {
+			return
+		}
 		existed := killServe(name) || scriptedAlive(name)
 		markRemoved(name)
 		if !existed {
@@ -1328,6 +1336,10 @@ func runtimeCmd(base string, args []string) {
 	case "image":
 		if len(args) >= 3 && args[1] == "pull" {
 			pull(args[len(args)-1])
+			return
+		}
+		if len(args) >= 3 && args[1] == "inspect" {
+			imageInspect(base, args)
 			return
 		}
 		os.Exit(64)
@@ -1348,10 +1360,20 @@ func runtimeCmd(base string, args []string) {
 		//                        uses, so the fake cannot tell the launcher a
 		//                        container exists and then deny it on inspect.
 		all := false
-		for _, a := range args {
+		for i, a := range args {
 			if a == "-a" || a == "--all" {
 				all = true
 			}
+			// A run's instances, by their label: what a stop of their
+			// target removes (runs.go).
+			if a == "--filter" && i+1 < len(args) {
+				psLabelled(args[i+1])
+				return
+			}
+		}
+		if base == "container" && all && strings.Contains(strings.Join(args, " "), "--format json") {
+			listJSON()
+			return
 		}
 		header := base == "container" // Apple container prints a header row
 		if all {
@@ -1418,6 +1440,9 @@ func runtimeCmd(base string, args []string) {
 		// found. The env list stays in the shape because a real inspect
 		// carries one; the launcher reads no variable out of it.
 		name := handleName(args[len(args)-1])
+		if inspectRunCtr(base, args, name) {
+			return
+		}
 		state := os.Getenv(stateVar(name))
 		if state == "" {
 			fmt.Fprintln(os.Stderr, "Error: no such container")
@@ -1438,7 +1463,13 @@ func runtimeCmd(base string, args []string) {
 			fmt.Printf(`[{"Config":{"Env":[]},"State":{"Status":%q}}]`+"\n", state)
 		}
 	case "run":
+		if slices.Contains(args, "--cidfile") {
+			attachedRun(args)
+			return
+		}
 		run(args)
+	case "kill":
+		killRun(args)
 	default:
 		fmt.Fprintf(os.Stderr, "fakert %s: unscripted subcommand %v\n", base, args)
 		os.Exit(64)
@@ -2153,6 +2184,9 @@ func existingContainers() []string {
 				seen[strings.TrimSuffix(strings.TrimPrefix(n, "serve-"), ".pid")] = true
 			}
 		}
+	}
+	for _, n := range runCtrNames() {
+		seen[n] = true
 	}
 	out := make([]string, 0, len(seen))
 	for n := range seen {

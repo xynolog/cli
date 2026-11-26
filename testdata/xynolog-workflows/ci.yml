@@ -118,7 +118,6 @@ jobs:
           npm run lint:python-version || fail=1
           npm run lint:node-version || fail=1
           npm run lint:nats-version || fail=1
-          npm run lint:conformance-readmes || fail=1
           npm run lint:transport-contract || fail=1
           npm run lint:client-surface || fail=1
           npm run lint:haskell-api || fail=1
@@ -1320,7 +1319,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite imports @xynolog/core — its test issuer, and the job stream's
       # subjects — and bundles the spec with the root's redocly. Core is the one
@@ -1338,9 +1336,7 @@ jobs:
       # Black-box: it starts gateway processes and checks them against protocol/specs/.
       - name: Run the gateway conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:gateway
+          xynolog-conformance gateway --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -1385,7 +1381,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite imports @xynolog/core — its test issuer — and bundles the
       # spec with the root's redocly. Core is the one package it builds.
@@ -1402,9 +1397,7 @@ jobs:
       # them only on the bus and their health port.
       - name: Run the dispatcher conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:dispatcher
+          xynolog-conformance dispatcher --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -1449,7 +1442,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite imports @xynolog/core — its test issuer — and bundles the
       # spec with the root's redocly. Core is the one package it builds.
@@ -1466,9 +1458,7 @@ jobs:
       # them on the bus, at their HTTP surface and in the files they keep.
       - name: Run the Archivist conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:archivist
+          xynolog-conformance archivist --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -1573,7 +1563,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite bundles the spec with the root's tools and reads
       # @xynolog/core; the TypeScript drivers run the built SDK, as an
@@ -1650,19 +1639,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libgmp10
 
-      # The leg's SDK alone: the implementations file less every other SDK.
-      # The suite type-checks the TypeScript drivers and makes the Python SDK's
-      # environment before it starts, when its SDK is one of them. The Kotlin
+      # The leg's SDK alone: the implementations file less every other SDK,
+      # beside it, where its commands resolve from. The suite neither
+      # type-checks the TypeScript drivers nor makes the Python SDK's
+      # environment. The Kotlin
       # drivers run with JaCoCo's agent, which their start scripts take from
       # JAVA_OPTS; every case starts its driver anew, so the JVM's start is
       # most of a case, which C1 alone and the serial collector shorten.
       - name: Run the SDK conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          jq --arg sdk '${{ matrix.sdk }}' '.sdks |= {($sdk): .[$sdk]}' xynolog.implementations.json > leg.implementations.json
-          mv leg.implementations.json xynolog.implementations.json
-          npm run test:sdk
+          jq --arg sdk '${{ matrix.sdk }}' '.sdks |= {($sdk): .[$sdk]}' protocol/conformance/xynolog.implementations.json > protocol/conformance/leg.implementations.json
+          xynolog-conformance sdk --implementations protocol/conformance/leg.implementations.json
         env:
           CI: true
           JAVA_OPTS: -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -javaagent:${{ github.workspace }}/packages/kotlin/sdk/build/conformance/jacoco/jacocoagent.jar=destfile=${{ github.workspace }}/packages/kotlin/sdk/build/conformance-coverage/drivers.exec,append=true
@@ -1787,7 +1774,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite bundles the spec with the root's tools and reads
       # @xynolog/core; the TypeScript worker driver runs the built SDK over the
@@ -1864,16 +1850,13 @@ jobs:
         run: chmod +x packages/swift/sdk/.build/conformance/xynolog-swift-wire-driver packages/swift/sdk/.build/conformance/bin/XynologWireDriver
 
       # The leg's SDK's worker driver alone, put through the corpus against the
-      # gateway: the implementations file less every other SDK. The suite
-      # type-checks the TypeScript driver and makes the Python SDK's
-      # environment before it starts, when its SDK is one of them.
+      # gateway: the implementations file less every other SDK, beside it,
+      # where its commands resolve from. The suite neither type-checks the
+      # TypeScript driver nor makes the Python SDK's environment.
       - name: Run the worker conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          jq --arg sdk '${{ matrix.sdk }}' '.sdks |= {($sdk): .[$sdk]}' xynolog.implementations.json > leg.implementations.json
-          mv leg.implementations.json xynolog.implementations.json
-          npm run test:worker
+          jq --arg sdk '${{ matrix.sdk }}' '.sdks |= {($sdk): .[$sdk]}' protocol/conformance/xynolog.implementations.json > protocol/conformance/leg.implementations.json
+          xynolog-conformance worker --implementations protocol/conformance/leg.implementations.json
         env:
           CI: true
 
@@ -1945,7 +1928,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite's harness is typed by the built @xynolog/core.
       - name: Install dependencies
@@ -1992,9 +1974,7 @@ jobs:
       # Archivist, records through the Archivist, and reads the graph.
       - name: Run the Weaver conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:weaver
+          xynolog-conformance weaver --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -2050,7 +2030,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite's harness is typed by the built @xynolog/core.
       - name: Install dependencies
@@ -2103,9 +2082,7 @@ jobs:
       # Archivist, records through the Archivist, and reads the index.
       - name: Run the Smelter conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:smelter
+          xynolog-conformance smelter --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -2164,7 +2141,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite's harness is typed by the built @xynolog/core.
       - name: Install dependencies
@@ -2243,9 +2219,7 @@ jobs:
       # the Librarian on the bus, and receives the telemetry it exports.
       - name: Run the Librarian conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:librarian
+          xynolog-conformance librarian --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 
@@ -2293,7 +2267,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            protocol/conformance/package-lock.json
 
       # The suite imports @xynolog/core — its test issuer — and bundles the
       # spec with the root's redocly. Core is the one package it builds.
@@ -2323,9 +2296,7 @@ jobs:
 
       - name: Run the worker-service conformance suite
         run: |
-          cd protocol/conformance
-          npm ci
-          npm run test:worker-service
+          xynolog-conformance worker-service --implementations protocol/conformance/xynolog.implementations.json
         env:
           CI: true
 

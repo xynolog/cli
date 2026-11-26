@@ -1,5 +1,5 @@
 {
   "schema": "xynolog-upstream-lock/v1",
-  "sdk": {"commit": "548e4fb7238693be7f21d7977a814441fc090bcd"},
+  "sdk": {"commit": "64ad2e957cd9c40f7d11f73466e8513efebf8975"},
   "images": {"commit": "0ddc65aaf522f056d69ac08d91773889b76f8cef"}
 }

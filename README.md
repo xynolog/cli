@@ -994,6 +994,17 @@ command runs:
 permanent identity; it does not request template copying or overwrite an
 existing knowledge base.
 
+`service.run` (`xynolog run`) is how the conformance harness holds a service
+to Protocol. It runs one of a knowledge base's own services once, from the
+image its stack documents name, unsupervised. The instance gets the caller's
+document, arguments, environment and mounts, runs as the launcher's own
+user, and has its ports published on the host address `service.host` names.
+The run sends `notifications/serviceStarted`, then each line the instance
+writes, with its stream, in `notifications/serviceOutput`. It is answered with
+the instance's exit. `service.signal` (`xynolog signal`) sends the instance
+SIGTERM and then SIGKILL 15 seconds later, or SIGKILL at once. A stop of the
+knowledge base removes every instance a launcher left behind.
+
 - **The spec is `protocol/specs/src/control`.** `methods.json` names each
   method and, by `$id`, the schemas of its params and result.
   `make generate` writes the launcher's types and the schemas it validates
@@ -1009,7 +1020,9 @@ existing knowledge base.
 - **Nothing it sends carries a secret.** Every secret value the launcher reads
   or generates is removed from progress lines, log records, error messages
   and diagnostics. A sign-in's device code goes in `notifications/userAction`
-  and nowhere else.
+  and nowhere else. A run's environment and document are its caller's
+  secrets too. The instance's own lines belong to the caller, and each is
+  carried as the instance wrote it.
 - **stdin and stdout are the protocol's alone.** What an operation prints
   becomes its request's progress. An operation that would ask a person reads
   end of file instead.

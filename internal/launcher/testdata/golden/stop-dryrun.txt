@@ -55,7 +55,11 @@ podman stop xynolog-example.github.io-test-kb-gateway
 podman rm xynolog-example.github.io-test-kb-gateway
 podman stop xynolog-example.github.io-test-kb-nats
 podman rm xynolog-example.github.io-test-kb-nats
+# stop and remove each run instance under container labelled org.xynolog.run=example.github.io-test-kb
+# stop and remove each run instance under docker labelled org.xynolog.run=example.github.io-test-kb
+# stop and remove each run instance under podman labelled org.xynolog.run=example.github.io-test-kb
 # remove staged configs: <temp-dir>/xynolog-config.example.github.io-test-kb.*
+# remove the run dirs runs left: <temp-dir>/xynolog-run.example.github.io-test-kb.*
 # stop the shared Worker:
 container stop xynolog-worker
 container rm xynolog-worker

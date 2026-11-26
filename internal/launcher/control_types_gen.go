@@ -653,9 +653,10 @@ type ControlIdentityUseraddParams struct {
 	// control.unsupported-api-version, and names the ones it does.
 	ApiVersion string `json:"apiVersion"`
 
-	// The local knowledge base whose launcher-managed identity realm an
-	// operation addresses.
-	Target ControlIdentityLocalTarget `json:"target"`
+	// A local knowledge base, named explicitly: the operations that act on one
+	// local stack and never resolve one for the caller (identity administration,
+	// a service's run).
+	Target ControlLocalTarget `json:"target"`
 
 	// The email address that will sign in to this knowledge base.
 	Email string `json:"email"`
@@ -669,13 +670,14 @@ type ControlIdentityUseraddParams struct {
 	GeneratePassword bool `json:"generatePassword"`
 }
 
-// ControlIdentityLocalTarget: The local knowledge base whose launcher-managed
-// identity realm an operation addresses.
-type ControlIdentityLocalTarget struct {
-	// Identity administration here is limited to local stacks.
+// ControlLocalTarget: A local knowledge base, named explicitly: the
+// operations that act on one local stack and never resolve one for the caller
+// (identity administration, a service's run).
+type ControlLocalTarget struct {
+	// Only a local stack.
 	Kind string `json:"kind"`
 
-	// The selected knowledge base's clone path.
+	// The knowledge base's clone, by its path.
 	Root string `json:"root"`
 }
 
@@ -705,9 +707,10 @@ type ControlIdentityUsersListParams struct {
 	// control.unsupported-api-version, and names the ones it does.
 	ApiVersion string `json:"apiVersion"`
 
-	// The local knowledge base whose launcher-managed identity realm an
-	// operation addresses.
-	Target ControlIdentityLocalTarget `json:"target"`
+	// A local knowledge base, named explicitly: the operations that act on one
+	// local stack and never resolve one for the caller (identity administration,
+	// a service's run).
+	Target ControlLocalTarget `json:"target"`
 }
 
 // ControlIdentityUsersListResult: Accounts in the selected knowledge base's
@@ -881,6 +884,135 @@ type ControlSettingsPathResult struct {
 	Path string `json:"path"`
 }
 
+// ControlServiceHostParams: service.host's params.
+type ControlServiceHostParams struct {
+	// The version of the control API the request is written to.
+	ApiVersion string `json:"apiVersion"`
+
+	// The container runtime to ask, as --runtime names it. Absent: the one the
+	// stack's record names, else the first installed one.
+	Runtime *string `json:"runtime,omitempty"`
+}
+
+// ControlServiceHostResult: Where this machine and a run's instance meet,
+// under a runtime: the address the launcher publishes an instance's ports on,
+// and the address the instance reaches this machine's listeners at. A caller
+// writes it into a document before the run.
+type ControlServiceHostResult struct {
+	// A container runtime the launcher drives, as --runtime names it: Apple
+	// container, Docker or Podman.
+	Runtime string `json:"runtime"`
+
+	// The host address: an IP address or a host name, as the launcher's own
+	// stack dials it under this runtime.
+	Address string `json:"address"`
+}
+
+// ControlServiceRunParams: service.run's params: one instance of one of a
+// knowledge base's own services, run once from the image the target's stack
+// documents name, unsupervised, on the caller's document, arguments and
+// environment. contract/LAUNCHER-CONTROL.md, R1-R8.
+type ControlServiceRunParams struct {
+	// The version of the control API the request is written to.
+	ApiVersion string `json:"apiVersion"`
+
+	// The knowledge base whose stack documents name the service's image, and
+	// whose stack the instance belongs to: stack.stop of it removes the instance
+	// too.
+	Target ControlLocalTarget `json:"target"`
+
+	// The container runtime to ask, as --runtime names it. Absent: the one the
+	// stack's record names, else the first installed one.
+	Runtime *string `json:"runtime,omitempty"`
+
+	// The service whose image runs.
+	Service string `json:"service"`
+
+	// A run's instance, by the name its caller gave it: unique among the
+	// target's instances that run on this machine. A second dispatcher beside
+	// the first is another instance. The launcher names the instance's container
+	// from the target's key and this name.
+	Instance string `json:"instance"`
+
+	// The configuration document's text, written as it is, at the path the
+	// image's own arguments name: it need not be JSON. Absent: no file is at
+	// that path.
+	Document *string `json:"document,omitempty"`
+
+	// The arguments the image's program is given in place of the image's own
+	// (--config and the document's path). Absent: the image's own.
+	Args []string `json:"args,omitempty"`
+
+	// Every variable the instance is given beside the image's own, by name:
+	// nothing of the launcher's is added (R2). Empty: none.
+	Environment map[string]string `json:"environment"`
+
+	// Directories of this machine, each mounted read-write at its own path, so
+	// that a path the document names is the same inside the instance and out
+	// (R4). Empty: none.
+	Mounts []string `json:"mounts"`
+
+	// Directories put before the image's PATH, in order, each mounted at its own
+	// path. Empty: the image's PATH as it is.
+	PathFirst []string `json:"pathFirst"`
+
+	// The ports the instance listens on, each published at the same number on
+	// the host address (R3). Empty: none.
+	Ports []int `json:"ports"`
+}
+
+// ControlServiceRunResult: A run that ended: its instance exited. Sent once
+// the instance's container has exited, after all of its output.
+type ControlServiceRunResult struct {
+	// A run's instance, by the name its caller gave it: unique among the
+	// target's instances that run on this machine. A second dispatcher beside
+	// the first is another instance. The launcher names the instance's container
+	// from the target's key and this name.
+	Instance string `json:"instance"`
+
+	// The instance's exit status: the service's own, since nothing supervises it
+	// (R1). An instance a signal ended exits with 128 and the signal's number:
+	// 143 for SIGTERM, 137 for SIGKILL.
+	ExitCode int `json:"exitCode"`
+
+	// Milliseconds from its container's start to its exit.
+	RanMs int `json:"ranMs"`
+}
+
+// ControlServiceSignalParams: service.signal's params: a signal for a run's
+// instance.
+type ControlServiceSignalParams struct {
+	// The version of the control API the request is written to.
+	ApiVersion string `json:"apiVersion"`
+
+	// The knowledge base whose stack documents name the service's image, and
+	// whose stack the instance belongs to: stack.stop of it removes the instance
+	// too.
+	Target ControlLocalTarget `json:"target"`
+
+	// The container runtime to ask, as --runtime names it. Absent: the one the
+	// stack's record names, else the first installed one.
+	Runtime *string `json:"runtime,omitempty"`
+
+	// A run's instance, by the name its caller gave it: unique among the
+	// target's instances that run on this machine. A second dispatcher beside
+	// the first is another instance. The launcher names the instance's container
+	// from the target's key and this name.
+	Instance string `json:"instance"`
+
+	// term: SIGTERM, and SIGKILL 15 seconds later if it has not exited. kill:
+	// SIGKILL, so nothing it would settle on the way out is settled.
+	Signal string `json:"signal"`
+}
+
+// ControlServiceSignalResult: A signal sent, or not needed. The instance's
+// exit is its run's answer, not this one.
+type ControlServiceSignalResult struct {
+	// Whether the instance still ran when the signal came. false: it has exited,
+	// and its run's answer is on its way; nothing was sent.
+	Delivered bool `json:"delivered"`
+}
+
 // ControlProgress: One line of what an operation is doing, as the command
 // line would tell a person, without colour. A secret value the launcher
 // generated or read never appears in one.
@@ -940,6 +1072,53 @@ type ControlLogRecord struct {
 	// When the launcher read the line, in RFC 3339 with its fraction: a
 	// container's own lines carry the time it wrote them, if any.
 	ReceivedAt string `json:"receivedAt"`
+}
+
+// ControlServiceStarted: notifications/serviceStarted: a run's instance is
+// running. Sent once, before any of its output.
+type ControlServiceStarted struct {
+	// The request a notification is about: the JSON-RPC id its client gave it,
+	// as the client gave it.
+	RequestId json.RawMessage `json:"requestId"`
+
+	// A run's instance, by the name its caller gave it: unique among the
+	// target's instances that run on this machine. A second dispatcher beside
+	// the first is another instance. The launcher names the instance's container
+	// from the target's key and this name.
+	Instance string `json:"instance"`
+
+	// The runtime's name for the instance's container.
+	Container string `json:"container"`
+
+	// Where the instance reads its document: the path the image's own arguments
+	// name. Present when the run gave a document.
+	DocumentPath *string `json:"documentPath,omitempty"`
+
+	// The host address the instance's ports are published on, as service.host
+	// names it for the run's runtime.
+	Address string `json:"address"`
+}
+
+// ControlServiceOutput: notifications/serviceOutput: one line a run's
+// instance wrote, from its start, every line, in the order of its stream, as
+// the instance wrote it. The launcher gives an instance none of its own
+// secrets (R2), and keeps no copy.
+type ControlServiceOutput struct {
+	// The request a notification is about: the JSON-RPC id its client gave it,
+	// as the client gave it.
+	RequestId json.RawMessage `json:"requestId"`
+
+	// A run's instance, by the name its caller gave it: unique among the
+	// target's instances that run on this machine. A second dispatcher beside
+	// the first is another instance. The launcher names the instance's container
+	// from the target's key and this name.
+	Instance string `json:"instance"`
+
+	// Which of a container's streams a line was on.
+	Stream string `json:"stream"`
+
+	// The line, without its newline.
+	Line string `json:"line"`
 }
 
 // ControlCancelled: The client gives up on one of its requests. The launcher

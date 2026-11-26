@@ -25,6 +25,7 @@ docker rm xynolog-example.github.io-test-kb-qdrant
 docker rm xynolog-example.github.io-test-kb-neo4j
 docker rm xynolog-example.github.io-test-kb-gateway
 docker rm xynolog-example.github.io-test-kb-nats
+docker ps -a --filter label=org.xynolog.run=example.github.io-test-kb --format {{.Names}}
 docker stop xynolog-worker
 docker rm xynolog-worker
 docker stop xynolog-keycloak

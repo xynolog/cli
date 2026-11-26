@@ -192,10 +192,6 @@ options:
 		return 0
 	}
 
-	if limit == 0 {
-		limit = 10
-	}
-
 	// Step 1: the annotation's context (streaming operation).
 	u.Log("Gathering context for %s...", annotationID)
 	gathered, err := c.Gather.Annotation(rid, aid, api.GatherAnnotationOptions{}).Wait(c.Context())
@@ -205,7 +201,11 @@ options:
 
 	// Step 2: the scored search, grounded by that context.
 	semantic := !noSemantic
-	results, err := c.Match.Search(rid, aid, gathered.Response, xynolog.MatchSearchOptions{Limit: limit, UseSemanticScoring: &semantic}).Wait(c.Context())
+	options := api.MatchSearchOptions{UseSemanticScoring: &semantic}
+	if limit != 0 {
+		options.Limit = &limit
+	}
+	results, err := c.Match.Search(rid, aid, gathered.Response, options).Wait(c.Context())
 	if err != nil {
 		return busFail(u, "match", c.Refusal(err))
 	}

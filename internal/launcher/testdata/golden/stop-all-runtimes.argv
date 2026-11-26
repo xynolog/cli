@@ -79,6 +79,9 @@ podman rm xynolog-example.github.io-test-kb-qdrant
 podman rm xynolog-example.github.io-test-kb-neo4j
 podman rm xynolog-example.github.io-test-kb-gateway
 podman rm xynolog-example.github.io-test-kb-nats
+container list -a --format json
+docker ps -a --filter label=org.xynolog.run=example.github.io-test-kb --format {{.Names}}
+podman ps -a --filter label=org.xynolog.run=example.github.io-test-kb --format {{.Names}}
 container stop xynolog-worker
 container rm xynolog-worker
 docker stop xynolog-worker
