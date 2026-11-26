@@ -5,9 +5,9 @@
 //
 // A document is held to its schema in protocol/specs/src/stack/ or
 // protocol/specs/src/kb-identity/ (schemas_gen.go carries their text), the schema
-// lint:spec-stack holds the shared cases to, so the schema alone decides a
-// document's shape. Only a document that holds to it is decoded into its type
-// (types_gen.go).
+// protocol/specs/src/stack/cases.json states its cases against, so the schema
+// alone decides a document's shape. Only a document that holds to it is
+// decoded into its type (types_gen.go).
 package stack
 
 import (
