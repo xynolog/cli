@@ -40,16 +40,18 @@ brew install xynolog/xynolog/xynolog
 Homebrew builds Xynolog from a pinned source snapshot and installs Go as a build
 dependency.
 
-Install the latest tagged CLI with Go:
-
-```sh
-go install github.com/xynolog/cli/cmd/xynolog@latest
-```
-
 Or download and unpack the archive for your OS and CPU architecture from
 the [GitHub Releases](https://github.com/xynolog/cli/releases).
-Releases cover macOS, Linux and Windows, arm64 and amd64, with Linux `.deb`
-and `.rpm` packages.
+Releases are named for the year and month they come out in, `vYY.M.N`
+(`v26.11.0` is the first of November 2026), and cover macOS, Linux and
+Windows, arm64 and amd64, with Linux `.deb` and `.rpm` packages.
+`checksums.txt` lists their digests, and each is attested to the workflow that
+built it:
+
+```sh
+gh attestation verify xynolog_26.11.0_darwin_arm64.tar.gz --repo xynolog/cli
+```
+
 Windows archives hold `xynolog.exe`. The binary is static: no language
 runtime bleeds onto your host. Besides the launcher you need only `git` and
 one container runtime (`container`, `docker`, or `podman`) on PATH.
@@ -140,7 +142,7 @@ xynolog stop
   (`protocol/specs/src/stack/Browser.json`), naming its image, its memory and the port
   it is published on, read with the reader a KB's documents are. The first
   command that needs it and finds none writes it from the launcher's catalog
-  (`xynolog-browser:latest`, 1G, port 3000) and says where; from then on the
+  (`xynolog-browser` at the images release, 1G, port 3000) and says where; from then on the
   file is what runs, and one that does not hold refuses the start, with its
   line, before anything is stopped or started.
   ANY start ensures it — including a codespace start, when a local container
@@ -215,7 +217,7 @@ xynolog stop
 - **The worker's settings belong to no KB either**: `stack/workers.yaml` in
   the state home, kind `WorkerPool` (`protocol/specs/src/stack/WorkerPool.json`),
   naming its image, its memory and its log level, written and read as the
-  Browser's is (`xynolog-worker:latest`, 2G, info) by the first start that
+  Browser's is (`xynolog-worker` at the images release, 2G, info) by the first start that
   runs a worker. A KB's repository holds none: its Inference document's
   `spec.engines.jobs` says which jobs a worker does, and with which engines.
 - **One worker serves a list of KBs** (`xynolog-worker`). A
@@ -678,11 +680,14 @@ xynolog stop
   place (the rest of the stack still mounts them); a `--service` status exits
   0/1 on that service alone.
 - **The images are the documents'**: each service runs the `image` its
-  document names, and `xynolog init` names `:latest`. An image tagged
-  `:local`, built on this machine by the images repository's `make build`, is never
-  pulled; a KB runs one by naming it. The Browser, which no KB owns, runs
-  the image its own document names, `ghcr.io/xynolog/xynolog-browser:latest`
-  as the launcher writes it.
+  document names, and the launcher writes Xynolog's images at the images
+  release this CLI was released with (`upstream.lock.json`):
+  `xynolog init` names `ghcr.io/xynolog/xynolog-gateway:26.11.0` when that
+  release is 26.11.0, and the Browser, which no KB owns, runs the image its
+  own document names, written the same way. An image tagged `:local`, built
+  on this machine by the images repository's `make build`, is never pulled; a
+  KB runs one by naming it, and a development build of the CLI, whose lock
+  names images by commit alone, writes `:local`.
 
 ### Login and upload
 

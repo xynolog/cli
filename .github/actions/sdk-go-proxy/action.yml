@@ -3,7 +3,7 @@ description: Downloads the bundle the sdk job built and points Go at its module 
 runs:
   using: composite
   steps:
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@v8.0.2
       with:
         name: sdk-artifacts
         path: ${{ runner.temp }}/sdk-artifacts

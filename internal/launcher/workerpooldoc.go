@@ -7,6 +7,7 @@ package launcher
 // (workerPlan); the worker that does them runs as this document says.
 
 import (
+	"github.com/xynolog/cli"
 	"github.com/xynolog/cli/internal/launcher/stack"
 	"github.com/xynolog/sdk/go/api"
 )
@@ -36,7 +37,7 @@ func catalogWorkerPool() stack.WorkerPool {
 		Spec: stack.WorkerPoolSpec{
 			LogLevel: api.LogLevelInfo,
 			Worker: stack.WorkerPoolWorker{
-				Image:     xynologImage("worker", "latest"),
+				Image:     xynologImage("worker", cli.ImagesTag()),
 				Resources: limits(xynologDescriptor("worker").mem),
 			},
 		},

@@ -55,13 +55,13 @@ container run -d --name xynolog-example.github.io-test-kb-archivist --memory 2G 
 container run -d --name xynolog-example.github.io-test-kb-librarian --memory 2G --publish 192.168.64.1:24104:24104 --volume <config-stage>/librarian.json:/etc/xynolog/librarian.json:ro -v <data-home>/roots/example.github.io-test-kb/librarian:/xynolog-state --env NEO4J_PASSWORD --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_ID=xynolog-librarian --env XYNOLOG_OIDC_CLIENT_SECRET --env QDRANT_TOKEN --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-librarian:latest@sha256:<verified>
 container run -d --name xynolog-example.github.io-test-kb-dispatcher --memory 2G --publish 192.168.64.1:24105:24105 --volume <config-stage>/dispatcher.json:/etc/xynolog/dispatcher.json:ro --env NATS_USER --env NATS_PASSWORD --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_ID=xynolog-dispatcher --env XYNOLOG_OIDC_CLIENT_SECRET --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-dispatcher:latest@sha256:<verified>
 lsof -nP -iTCP:24100 -sTCP:LISTEN
-container image pull ghcr.io/xynolog/xynolog-worker:latest@sha256:<verified>
-container run -d --name xynolog-worker --memory 2G --publish 192.168.64.1:24100:24100 --volume <state-home>/shared/worker.json:/etc/xynolog/worker.json:ro --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_KEY --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-worker:latest@sha256:<verified>
+container image pull ghcr.io/xynolog/xynolog-worker:26.11.0@sha256:<verified>
+container run -d --name xynolog-worker --memory 2G --publish 192.168.64.1:24100:24100 --volume <state-home>/shared/worker.json:/etc/xynolog/worker.json:ro --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_KEY --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-worker:26.11.0@sha256:<verified>
 container run -d --name xynolog-example.github.io-test-kb-smelter --memory 2G --publish 192.168.64.1:24101:24101 --volume <config-stage>/smelter.json:/etc/xynolog/smelter.json:ro --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_ID=xynolog-smelter --env XYNOLOG_OIDC_CLIENT_SECRET --env QDRANT_TOKEN --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-smelter:latest@sha256:<verified>
 container run -d --name xynolog-example.github.io-test-kb-weaver --memory 2G --publish 192.168.64.1:24102:24102 --volume <config-stage>/weaver.json:/etc/xynolog/weaver.json:ro --env NEO4J_PASSWORD --env OTEL_EXPORTER_OTLP_ENDPOINT=http://192.168.64.1:4318 --env XYNOLOG_OIDC_CLIENT_ID=xynolog-weaver --env XYNOLOG_OIDC_CLIENT_SECRET --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-weaver:latest@sha256:<verified>
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:13000 -sTCP:LISTEN
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:13000 -sTCP:LISTEN
-container image pull ghcr.io/xynolog/xynolog-browser:latest@sha256:<verified>
-container run -d --name xynolog-browser --memory 1G --publish 127.0.0.1:3000:3000 --publish 192.168.64.1:13000:3000 -v <state-home>/discovery:/discovery:ro --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-browser:latest@sha256:<verified>
+container image pull ghcr.io/xynolog/xynolog-browser:26.11.0@sha256:<verified>
+container run -d --name xynolog-browser --memory 1G --publish 127.0.0.1:3000:3000 --publish 192.168.64.1:13000:3000 -v <state-home>/discovery:/discovery:ro --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-browser:26.11.0@sha256:<verified>

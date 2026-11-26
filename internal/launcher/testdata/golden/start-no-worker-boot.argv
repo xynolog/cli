@@ -61,5 +61,5 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:13000 -sTCP:LISTEN
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:13000 -sTCP:LISTEN
-container image pull ghcr.io/xynolog/xynolog-browser:latest@sha256:<verified>
-container run -d --name xynolog-browser --memory 1G --publish 127.0.0.1:3000:3000 --publish 192.168.64.1:13000:3000 -v <state-home>/discovery:/discovery:ro --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-browser:latest@sha256:<verified>
+container image pull ghcr.io/xynolog/xynolog-browser:26.11.0@sha256:<verified>
+container run -d --name xynolog-browser --memory 1G --publish 127.0.0.1:3000:3000 --publish 192.168.64.1:13000:3000 -v <state-home>/discovery:/discovery:ro --env XYNOLOG_SUPERVISE=1 ghcr.io/xynolog/xynolog-browser:26.11.0@sha256:<verified>

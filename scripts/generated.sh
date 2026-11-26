@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # generated.sh generate|check: cli's generated files, written by the generator
-# the SDK bundle carries (sdk's codegen, at the commit sdk.lock pins) from the
+# the SDK bundle carries (sdk's codegen, at the commit upstream.lock.json locks) from the
 # Protocol this checkout pins. generate writes them into the checkout; check
 # writes them into a copy and fails naming each file that differs from the
 # committed one, and each committed file that says it is generated and that

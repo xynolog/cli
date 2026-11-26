@@ -96,7 +96,12 @@ func TestMain(m *testing.M) {
 	// (internal/launcher/hostnet_scenario.go); and it stages the configs it
 	// mounts under the temporary directory its environment names, which is
 	// each scenario's own (internal/launcher/staging_scenario.go).
-	launcherBuild := []string{"build", "-tags", "scenario", "-o", launcherBin}
+	overlay, err := releasedLockOverlay(binDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	launcherBuild := []string{"build", "-tags", "scenario", "-overlay", overlay, "-o", launcherBin}
 	if *launcherCoverDir != "" {
 		// Absolute, since each launcher runs in its own scenario's directory.
 		if *launcherCoverDir, err = filepath.Abs(*launcherCoverDir); err != nil {
@@ -125,6 +130,47 @@ func TestMain(m *testing.M) {
 		}
 	}
 	os.Exit(m.Run())
+}
+
+// imagesRelease: the images release the launcher under test is built with.
+const imagesRelease = "26.11.0"
+
+// releasedLockOverlay: a go build overlay under dir that builds the launcher
+// with this checkout's upstream.lock.json naming images by imagesRelease, as
+// a released CLI's lock names them, whatever this checkout's names. So a
+// scenario writes and runs the images a release does.
+func releasedLockOverlay(dir string) (string, error) {
+	path, err := filepath.Abs(filepath.Join("..", "..", "upstream.lock.json"))
+	if err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var lock map[string]any
+	if err := json.Unmarshal(b, &lock); err != nil {
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	images, ok := lock["images"].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("%s names no images", path)
+	}
+	images["version"] = imagesRelease
+	released, err := json.Marshal(lock)
+	if err != nil {
+		return "", err
+	}
+	releasedPath := filepath.Join(dir, "upstream.lock.json")
+	if err := os.WriteFile(releasedPath, released, 0o644); err != nil {
+		return "", err
+	}
+	overlay, err := json.Marshal(map[string]map[string]string{"Replace": {path: releasedPath}})
+	if err != nil {
+		return "", err
+	}
+	overlayPath := filepath.Join(dir, "overlay.json")
+	return overlayPath, os.WriteFile(overlayPath, overlay, 0o644)
 }
 
 // askedOfTheSystem: the programs the launcher asks this system about ports
@@ -1843,8 +1889,8 @@ func localImages(t *testing.T, s *scenario) {
 		"xynolog-librarian:latest", "xynolog-librarian:local",
 		"xynolog-smelter:latest", "xynolog-smelter:local",
 		"xynolog-weaver:latest", "xynolog-weaver:local")
-	editSharedDocument(t, s, "worker", "workers.yaml", "xynolog-worker:latest", "xynolog-worker:local")
-	editSharedDocument(t, s, "browser", "browser.yaml", "xynolog-browser:latest", "xynolog-browser:local")
+	editSharedDocument(t, s, "worker", "workers.yaml", "xynolog-worker:"+imagesRelease, "xynolog-worker:local")
+	editSharedDocument(t, s, "browser", "browser.yaml", "xynolog-browser:"+imagesRelease, "xynolog-browser:local")
 }
 
 func TestStartLocalImagesBoot(t *testing.T) {
@@ -1891,7 +1937,7 @@ const servicesRelease = "https://github.com/xynolog/images/.github/workflows/pub
 // would run one no release built refuses before it touches anything: the
 // running stack stays as it was.
 func TestAnImageNoReleaseBuiltIsRefusedBeforeAnythingIsTornDown(t *testing.T) {
-	const worker = "ghcr.io/xynolog/xynolog-worker:latest"
+	const worker = "ghcr.io/xynolog/xynolog-worker:" + imagesRelease
 	for _, c := range []struct {
 		name string
 		said map[string]any
@@ -1923,7 +1969,7 @@ func TestAnImageNoReleaseBuiltIsRefusedBeforeAnythingIsTornDown(t *testing.T) {
 // The Browser's image is a release's only when the Browser's own workflow
 // built it: the services' workflow signing it does not make it one.
 func TestTheBrowsersImageIsHeldToItsOwnWorkflow(t *testing.T) {
-	const browser = "ghcr.io/xynolog/xynolog-browser:latest"
+	const browser = "ghcr.io/xynolog/xynolog-browser:" + imagesRelease
 	s := newScenario(t, "container")
 	fakeAttestations(t, s, map[string]map[string]any{browser: {"identity": servicesRelease}})
 	stdout, stderr, code := s.run(t, "start")
@@ -7735,12 +7781,12 @@ func TestTheWorkerRunsWhatItsDocumentSays(t *testing.T) {
 	mustContain(t, path, string(text),
 		"kind: WorkerPool",
 		"logLevel: info",
-		"image: ghcr.io/xynolog/xynolog-worker:latest",
+		"image: ghcr.io/xynolog/xynolog-worker:"+imagesRelease,
 		"memory: 2G")
 	mustContain(t, "argv log", s.argv(t), "run -d --name xynolog-worker --memory 2G")
 
 	editSharedDocument(t, s, "worker", "workers.yaml",
-		"xynolog-worker:latest", "xynolog-worker:local",
+		"xynolog-worker:"+imagesRelease, "xynolog-worker:local",
 		"memory: 2G", "memory: 3G",
 		"logLevel: info", "logLevel: debug")
 	stdout, stderr, code = s.run(t, "start")
@@ -7811,7 +7857,7 @@ func TestAStartWithNoBrowserDocumentWritesOne(t *testing.T) {
 	}
 	mustContain(t, path, string(text),
 		"kind: Browser",
-		"image: ghcr.io/xynolog/xynolog-browser:latest",
+		"image: ghcr.io/xynolog/xynolog-browser:"+imagesRelease,
 		"memory: 1G",
 		"port: 3000")
 	mustContain(t, "argv log", s.argv(t), "run -d --name xynolog-browser --memory 1G --publish 127.0.0.1:3000:3000")
@@ -7827,7 +7873,7 @@ func TestAStartWithNoBrowserDocumentWritesOne(t *testing.T) {
 func TestTheBrowserRunsWhatItsDocumentSays(t *testing.T) {
 	s := newScenario(t, "container")
 	editSharedDocument(t, s, "browser", "browser.yaml",
-		"xynolog-browser:latest", "xynolog-browser:local",
+		"xynolog-browser:"+imagesRelease, "xynolog-browser:local",
 		"memory: 1G", "memory: 2G",
 		"port: 3000", "port: 3001")
 	stdout, stderr, code := s.run(t, "start")
@@ -7907,7 +7953,7 @@ func TestSettingsShowsTheBrowserDocument(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("settings browser: exit %d\n%s", code, stderr)
 	}
-	mustContain(t, "settings browser", stdout, path, "ghcr.io/xynolog/xynolog-browser:latest", "1G", "http://localhost:3000")
+	mustContain(t, "settings browser", stdout, path, "ghcr.io/xynolog/xynolog-browser:"+imagesRelease, "1G", "http://localhost:3000")
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("showing the Browser's document did not write it: %v", err)
 	}
@@ -8713,7 +8759,7 @@ func TestStackStateLifecycle(t *testing.T) {
 	if code != 0 {
 		t.Errorf("status on healthy stack: exit %d", code)
 	}
-	mustContain(t, "status header", statusOut, "images latest")
+	mustContain(t, "status header", statusOut, "images "+imagesRelease)
 	statusArgv := strings.TrimPrefix(s.argv(t), preStatus)
 	mustContain(t, "status argv", statusArgv, "container inspect fid-xynolog-example.github.io-test-kb-gateway")
 	for _, bad := range []string{"docker inspect", "podman inspect"} {
@@ -10027,7 +10073,7 @@ func TestStartServiceWorker(t *testing.T) {
 	mustContain(t, "argv", argv,
 		"stop xynolog-worker",
 		"rm xynolog-worker",
-		"image pull ghcr.io/xynolog/xynolog-worker:latest",
+		"image pull ghcr.io/xynolog/xynolog-worker:"+imagesRelease,
 		"--env XYNOLOG_OIDC_CLIENT_KEY",
 		"--env OTEL_EXPORTER_OTLP_ENDPOINT=http://",
 		asThisSystemRuns("<state-home>/shared/worker.json:/etc/xynolog/worker.json:ro"),
@@ -10557,7 +10603,7 @@ func TestStartServiceDryRunWorker(t *testing.T) {
 	mustContain(t, "stdout", s.norm(stdout),
 		"xynolog start --service worker --dry-run",
 		"container stop xynolog-worker",
-		"container image pull ghcr.io/xynolog/xynolog-worker:latest",
+		"container image pull ghcr.io/xynolog/xynolog-worker:"+imagesRelease,
 		"# write <data-home>/shared/worker-knowledge-bases.json: the worker's list, example.github.io:test-kb (local)",
 		asThisSystemPrints("--volume <state-home>/shared/worker.json:/etc/xynolog/worker.json:ro"),
 		"wait: http://<host-addr>:24100/health (30s)",
@@ -12125,7 +12171,7 @@ func TestBrowserLifecycle(t *testing.T) {
 			Image string `json:"image"`
 		} `json:"shared"`
 	}
-	if err := json.Unmarshal(rec, &ran); err != nil || !strings.HasPrefix(ran.Shared["xynolog-browser"].Image, "ghcr.io/xynolog/xynolog-browser:latest@sha256:") {
+	if err := json.Unmarshal(rec, &ran); err != nil || !strings.HasPrefix(ran.Shared["xynolog-browser"].Image, "ghcr.io/xynolog/xynolog-browser:"+imagesRelease+"@sha256:") {
 		t.Fatalf("the Browser was recorded as %q (%v): want the verified image, by its digest", ran.Shared["xynolog-browser"].Image, err)
 	}
 
@@ -12354,7 +12400,7 @@ func TestInitGeneratesStartableDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generated KnowledgeIndex missing: %v", err)
 	}
-	mustContain(t, "index.yaml", string(index), "model: nomic-embed-text", "xynolog-librarian:latest")
+	mustContain(t, "index.yaml", string(index), "model: nomic-embed-text", "xynolog-librarian:"+imagesRelease)
 	kb, err := os.ReadFile(filepath.Join(stackDir, "knowledge-base.yaml"))
 	if err != nil {
 		t.Fatalf("generated KnowledgeBase missing: %v", err)
