@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // Every image the launcher names is pinned: a tag a reader goes by, and the
@@ -126,7 +128,7 @@ func TestEveryRoleHasOneGroup(t *testing.T) {
 			if other, ok := groupOf[role]; ok {
 				t.Errorf("%s is in the %s group and the %s group", role, other, g.name)
 			}
-			groupOf[role] = g.name
+			groupOf[role] = string(g.name)
 			if g.name == "telemetry" {
 				telemetry = append(telemetry, role)
 			}
@@ -137,7 +139,7 @@ func TestEveryRoleHasOneGroup(t *testing.T) {
 			t.Errorf("%s is in no group", role)
 		}
 	}
-	named := map[string]bool{}
+	named := map[api.ServiceGroup]bool{}
 	for _, g := range serviceGroups {
 		if named[g.name] {
 			t.Errorf("two groups are named %s", g.name)
@@ -155,7 +157,7 @@ func TestEveryRoleHasOneGroup(t *testing.T) {
 	var shared []string
 	for _, g := range serviceGroups {
 		if g.shared() {
-			shared = append(shared, g.name)
+			shared = append(shared, string(g.name))
 		}
 	}
 	assertNames(t, "shared groups", shared, []string{"issuer", "knowledge-workers", "providers", "telemetry"})
@@ -289,7 +291,7 @@ func TestTheOperatorGuideNamesEachGroup(t *testing.T) {
 		if g.shared() {
 			whose = "shared"
 		}
-		want := append([]string{g.name, whose}, g.roles...)
+		want := append([]string{string(g.name), whose}, g.roles...)
 		if !slices.Equal(rows[i], want) {
 			t.Errorf("the guide's row %d reads %q, want %q", i+1, rows[i], want)
 		}

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // controlRootsInit: initialize a local clone through xynolog init itself, so
@@ -23,7 +25,7 @@ func controlRootsInitWith(
 	findExecutable func() (string, error),
 	command func(context.Context, string, ...string) *exec.Cmd,
 ) (any, *controlFailure) {
-	var p ControlRootsInitParams
+	var p api.RootsInitParams
 	if f := req.decode(&p); f != nil {
 		return nil, f
 	}
@@ -50,7 +52,7 @@ func controlRootsInitWith(
 	}
 	add("--name", p.Name)
 	add("--site-name", p.SiteName)
-	add("--inference", p.Inference)
+	add("--inference", textOf(p.Inference))
 	add("--model", p.Model)
 	add("--model-light", p.ModelLight)
 	if p.Embedding != nil {
@@ -80,7 +82,7 @@ func controlRootsInitWith(
 		u.Fail("xynolog init failed: %s", message)
 		return nil, failed(u, controlCodeFailed)
 	}
-	return ControlRootsInitResult{Path: p.Path}, nil
+	return api.RootsInitResult{Path: p.Path}, nil
 }
 
 func withoutXynologRoot(env []string) []string {

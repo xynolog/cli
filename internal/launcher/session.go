@@ -454,13 +454,13 @@ func Logout(args []string) int {
 // signOut ends the stored session of target, the stack SelectVerbStack chose
 // (nil: none is recorded, and there is nothing to end). ok=false: refused, and
 // said.
-func signOut(ctx context.Context, u *UI, target *StackState) (ControlAuthLogoutResult, bool) {
+func signOut(ctx context.Context, u *UI, target *StackState) (api.AuthLogoutResult, bool) {
 	if target == nil {
 		u.Log("No stack is recorded — nothing to log out.")
-		return ControlAuthLogoutResult{}, true
+		return api.AuthLogoutResult{}, true
 	}
 	key := StackKey(target)
-	ended := ControlAuthLogoutResult{Key: &key}
+	ended := api.AuthLogoutResult{Key: &key}
 
 	store, ok := signInStore()
 	if !ok {
@@ -470,7 +470,7 @@ func signOut(ctx context.Context, u *UI, target *StackState) (ControlAuthLogoutR
 	e, have, err := store.SignIn(key)
 	if err != nil {
 		u.Refuse(controlCodeUnreadableState, "The sign-in store cannot be read: %v", err)
-		return ControlAuthLogoutResult{}, false
+		return api.AuthLogoutResult{}, false
 	}
 	if !have {
 		u.Log("No session for %s — nothing to log out.", key)
@@ -482,7 +482,7 @@ func signOut(ctx context.Context, u *UI, target *StackState) (ControlAuthLogoutR
 	revoked, err := xynolog.SignOut(ctx, issuer, store.Entry(key))
 	if err != nil {
 		u.Refuse(controlCodeFailed, "Could not remove the stored session: %v", err)
-		return ControlAuthLogoutResult{}, false
+		return api.AuthLogoutResult{}, false
 	}
 	ended.WasSignedIn, ended.Revoked = true, revoked
 	signedOut := key

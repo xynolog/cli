@@ -300,8 +300,8 @@ github.com/transparency-dev/formats v0.1.1 h1:4bVHJc+KdBgpA1OJD1yjI+g0i5Z1graCpp
 github.com/transparency-dev/formats v0.1.1/go.mod h1:qtZ8goRuJ8FTBG9c9+Bj0rn2rUG7eG/AUTkr+Aw3jFw=
 github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG81+twTK4=
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
-github.com/xynolog/sdk/go v1.2611.0-dev.20261121031552.g64ad2e9 h1:jnDYsWYaRG0XepQrN8Er/k4wHaMewMYmeiBOSTC2M08=
-github.com/xynolog/sdk/go v1.2611.0-dev.20261121031552.g64ad2e9/go.mod h1:t86k6hyGaJaJx3cT8eMELfDfB+rKP/pnCIYmKiZVtjY=
+github.com/xynolog/sdk/go v0.8.2-dev.20261126165559.gea090d5 h1:Q3mZPt++Uu5UhfzJcOPgv579/RlLM9bANgt5APlPFv0=
+github.com/xynolog/sdk/go v0.8.2-dev.20261126165559.gea090d5/go.mod h1:m1gPrQhXRO7GJecUvhBdDTxhQ4+7cUU7RJVAfw/kJqQ=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=

@@ -90,10 +90,10 @@ func Login(args []string) int {
 // chose, through the issuer it trusts, and keeps the session. shown is given
 // the one-time code the person approves the sign-in with. ok=false: refused,
 // and said.
-func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.DeviceCode)) (ControlAuthLoginResult, bool) {
+func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.DeviceCode)) (api.AuthLoginResult, bool) {
 	base, ok := StackBase(u, target, "login")
 	if !ok {
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 	key := StackKey(target)
 
@@ -102,14 +102,14 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	if err != nil {
 		u.Refuse(controlCodeUnreachable, "%v", err)
 		fmt.Fprintln(os.Stderr, "  Is the stack up?  xynolog status")
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 	u.Log("Issuer: %s %s", endpoints.Issuer, u.Dim("(named by the knowledge base's resource metadata)"))
 
 	tokens, err := issuer.SignInWithDeviceGrant(ctx, endpoints, shown)
 	if err != nil {
 		u.Refuse(controlCodeSignInFailed, "Sign-in failed: %v", err)
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 	noteSecret(tokens.Access)
 	noteSecret(tokens.Refresh)
@@ -126,29 +126,29 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	asker.Close()
 	if unauthorized(err) {
 		u.Refuse(controlCodeSignInFailed, "The issuer signed you in, but the gateway rejected the token — the realm's audience mapper and this knowledge base's resource identifier disagree.")
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 	if err != nil {
 		u.Refuse(controlCodeUnreachable, "Gateway unreachable at %s: %v", base, err)
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 
-	if err := keepSignIn(ctx, key, xynolog.HeldSignIn{
+	if err := keepSignIn(ctx, key, api.StoredSession{
 		Access:             tokens.Access,
 		Refresh:            tokens.Refresh,
-		ClientID:           xynolog.ScriptClientID,
+		ClientId:           xynolog.ScriptClientID,
 		TokenEndpoint:      endpoints.Token,
 		RevocationEndpoint: endpoints.Revocation,
 	}); err != nil {
 		u.Refuse(controlCodeSignInFailed, "Token could not be stored (%v) — NOT logged in.", err)
-		return ControlAuthLoginResult{}, false
+		return api.AuthLoginResult{}, false
 	}
 	who := me.Did.String()
 	if me.Email != nil {
 		who = *me.Email
 	}
 	u.Ok("Logged in to %s as %s %s", key, who, u.Dim("(token in "+tokensPath()+")"))
-	return ControlAuthLoginResult{Key: key, Who: who, Issuer: endpoints.Issuer}, true
+	return api.AuthLoginResult{Key: key, Who: who, Issuer: endpoints.Issuer}, true
 }
 
 // NoGatewayRecorded: a local stack's record names no gateway endpoint, so

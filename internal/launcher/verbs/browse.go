@@ -354,7 +354,7 @@ options:
 		}
 		fmt.Printf("  %s\n", u.Dim(fmt.Sprintf("%d annotation(s)", len(list))))
 	default:
-		filters := xynolog.ResourceFilters{Limit: limit}
+		filters := api.BrowseResourcesRequest{Limit: &limit}
 		if entityType != "" {
 			filters.EntityType = &entityType
 		}

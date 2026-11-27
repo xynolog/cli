@@ -52,23 +52,15 @@ var mcpHandlers = map[string]mcpHandler{
 	}),
 
 	"match_resources": handle(func(ctx context.Context, call mcpCall, args struct {
-		Search     string  `json:"search"`
-		Archived   *bool   `json:"archived"`
-		EntityType *string `json:"entityType"`
-		Limit      int     `json:"limit"`
-		Offset     int     `json:"offset"`
+		Search string `json:"search"`
+		api.ResourceSearchFilters
 	}) (mcpAnswer, error) {
-		found, err := call.client().Match.Resources(args.Search, xynolog.ResourceFilters{Limit: args.Limit, Offset: args.Offset, Archived: args.Archived, EntityType: args.EntityType}).Fresh(ctx)
+		found, err := call.client().Match.Resources(args.Search, args.ResourceSearchFilters).Fresh(ctx)
 		return mcpAnswer{structured: found}, err
 	}),
 
-	"browse_resources": handle(func(ctx context.Context, call mcpCall, args struct {
-		Archived   *bool   `json:"archived"`
-		EntityType *string `json:"entityType"`
-		Limit      int     `json:"limit"`
-		Offset     int     `json:"offset"`
-	}) (mcpAnswer, error) {
-		listed, err := call.client().Browse.Resources(xynolog.ResourceFilters{Limit: args.Limit, Offset: args.Offset, Archived: args.Archived, EntityType: args.EntityType}).Fresh(ctx)
+	"browse_resources": handle(func(ctx context.Context, call mcpCall, args api.BrowseResourcesRequest) (mcpAnswer, error) {
+		listed, err := call.client().Browse.Resources(args).Fresh(ctx)
 		return mcpAnswer{structured: listed}, err
 	}),
 
@@ -196,13 +188,13 @@ var mcpHandlers = map[string]mcpHandler{
 	}),
 
 	"yield_resource": handle(func(ctx context.Context, call mcpCall, args struct {
-		Name       string `json:"name"`
-		File       string `json:"file"`
-		Format     string `json:"format"`
-		StorageUri string `json:"storageUri"`
-		Language   string `json:"language"`
+		Name       string  `json:"name"`
+		File       string  `json:"file"`
+		Format     string  `json:"format"`
+		StorageUri string  `json:"storageUri"`
+		Language   *string `json:"language"`
 	}) (mcpAnswer, error) {
-		upload := call.client().Yield.Resource(ctx, xynolog.PutBinaryRequest{Name: args.Name, Bytes: []byte(args.File), Format: args.Format, StorageURI: args.StorageUri, Language: args.Language})
+		upload := call.client().Yield.Resource(ctx, api.PutBinaryRequest{Name: args.Name, File: []byte(args.File), Format: args.Format, StorageUri: args.StorageUri, Language: args.Language})
 		created, err := upload.Wait(ctx)
 		return mcpAnswer{structured: map[string]any{"resourceId": created.ResourceId}}, err
 	}),

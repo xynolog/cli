@@ -280,8 +280,8 @@ func yieldOne(u *launcher.UI, c *launcher.VerbClient, root, up, name string) int
 		format = "application/octet-stream"
 	}
 
-	created, err := c.Yield.Resource(c.Context(), xynolog.PutBinaryRequest{
-		Name: name, Bytes: content, Format: format, StorageURI: "file://" + rel,
+	created, err := c.Yield.Resource(c.Context(), api.PutBinaryRequest{
+		Name: name, File: content, Format: format, StorageUri: "file://" + rel,
 	}).Wait(c.Context())
 	if err == nil {
 		u.Ok("Yielded: %s → %s", up, created.ResourceId)

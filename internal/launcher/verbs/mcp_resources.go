@@ -19,7 +19,6 @@ import (
 
 	launcher "github.com/xynolog/cli/internal/launcher"
 
-	xynolog "github.com/xynolog/sdk/go"
 	"github.com/xynolog/sdk/go/api"
 )
 
@@ -120,7 +119,7 @@ func listMCPResources(ctx context.Context, sessions *launcher.Sessions) (*mcp.Li
 			continue
 		}
 		c := session.Client()
-		page, err := c.Browse.Resources(xynolog.ResourceFilters{}).Fresh(ctx)
+		page, err := c.Browse.Resources(api.BrowseResourcesRequest{}).Fresh(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "xynolog mcp: %s's resources are not listed: %v\n", kb.Key, c.Refusal(err))
 			continue

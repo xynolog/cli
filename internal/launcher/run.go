@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/xynolog/cli/internal/launcher/stack"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // runLabel: the label each run's container carries, valued with its target's
@@ -613,7 +614,7 @@ func runService(ctx context.Context, u *UI, spec runSpec, sink runSink) (runEnde
 // signalContainer sends name's container signal — "term": SIGTERM, then
 // SIGKILL if it still runs runStopGrace later; "kill": SIGKILL. A term is
 // answered once the instance has exited. delivered=false: it was not running.
-func signalContainer(rt, name, signal string) (delivered bool, err error) {
+func signalContainer(rt, name string, signal api.ServiceSignalParamsSignal) (delivered bool, err error) {
 	if state, _ := containerState([]string{rt}, name); state != "running" {
 		return false, nil
 	}
@@ -649,7 +650,7 @@ func signalContainer(rt, name, signal string) (delivered bool, err error) {
 // signalService sends a run's instance signal. delivered=false: the instance
 // has exited, and its run is not yet answered. ok=false: refused or failed,
 // and said — control.instance-not-found for a name with no run in flight.
-func signalService(u *UI, root, named, instance, signal string) (delivered, ok bool) {
+func signalService(u *UI, root, named, instance string, signal api.ServiceSignalParamsSignal) (delivered, ok bool) {
 	kb, ok := runTarget(u, root)
 	if !ok {
 		return false, false
@@ -709,9 +710,13 @@ func runInstances(rt, key string) []string {
 }
 
 // runSpecOf: the run p asks for.
-func runSpecOf(p ControlServiceRunParams) runSpec {
-	return runSpec{root: p.Target.Root, runtime: given(p.Runtime), service: p.Service, instance: p.Instance,
-		document: p.Document, args: p.Args, environment: p.Environment, mounts: p.Mounts, pathFirst: p.PathFirst, ports: p.Ports}
+func runSpecOf(p api.ServiceRunParams) runSpec {
+	spec := runSpec{root: p.Target.Root, runtime: string(given(p.Runtime)), service: string(p.Service), instance: p.Instance,
+		document: p.Document, environment: p.Environment, mounts: p.Mounts, pathFirst: p.PathFirst, ports: p.Ports}
+	if p.Args != nil {
+		spec.args = *p.Args
+	}
+	return spec
 }
 
 // heldToMethod: whether params, as a command line states them, are what
@@ -771,8 +776,9 @@ signals it from elsewhere.
 // Run implements `xynolog run`.
 func Run(args []string) int {
 	u := NewUI(false)
-	p := ControlServiceRunParams{ApiVersion: controlAPIVersion, Target: ControlLocalTarget{Kind: "local"},
+	p := api.ServiceRunParams{ApiVersion: controlAPIVersion, Target: api.LocalTarget{Kind: "local"},
 		Environment: map[string]string{}, Mounts: []string{}, PathFirst: []string{}, Ports: []int{}}
+	var runArgs []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		value := func() (string, bool) {
@@ -795,7 +801,7 @@ func Run(args []string) int {
 				u.Fail("Unknown argument: %s", a)
 				return 1
 			}
-			p.Service = a
+			p.Service = api.RunService(a)
 			continue
 		}
 		if !ok {
@@ -805,7 +811,8 @@ func Run(args []string) int {
 		case "--root":
 			p.Target.Root = v
 		case "--runtime":
-			p.Runtime = &v
+			runtime := api.Runtime(v)
+			p.Runtime = &runtime
 		case "--instance":
 			p.Instance = v
 		case "--document":
@@ -817,7 +824,7 @@ func Run(args []string) int {
 			document := string(text)
 			p.Document = &document
 		case "--arg":
-			p.Args = append(p.Args, v)
+			runArgs = append(runArgs, v)
 		case "--env":
 			name, value, stated := strings.Cut(v, "=")
 			if !stated {
@@ -840,6 +847,7 @@ func Run(args []string) int {
 			p.Ports = append(p.Ports, port)
 		}
 	}
+	p.Args = listed(runArgs)
 	if !heldToMethod(u, "service.run", p) {
 		return 1
 	}
@@ -882,7 +890,7 @@ settle on the way out is settled. The run answers with the instance's exit.
 // Signal implements `xynolog signal`.
 func Signal(args []string) int {
 	u := NewUI(false)
-	p := ControlServiceSignalParams{ApiVersion: controlAPIVersion, Target: ControlLocalTarget{Kind: "local"}}
+	p := api.ServiceSignalParams{ApiVersion: controlAPIVersion, Target: api.LocalTarget{Kind: "local"}}
 	var positionals []string
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; a {
@@ -895,7 +903,8 @@ func Signal(args []string) int {
 			if a == "--root" {
 				p.Target.Root = args[i]
 			} else {
-				p.Runtime = &args[i]
+				runtime := api.Runtime(args[i])
+				p.Runtime = &runtime
 			}
 		case "--help", "-h":
 			fmt.Print(signalUsage)
@@ -912,7 +921,7 @@ func Signal(args []string) int {
 		u.Fail("Name the instance and the signal: xynolog signal <instance> term|kill")
 		return 1
 	}
-	p.Instance, p.Signal = positionals[0], positionals[1]
+	p.Instance, p.Signal = positionals[0], api.ServiceSignalParamsSignal(positionals[1])
 	if p.Target.Root == "" {
 		kb, err := cwdKBRoot()
 		if err != nil {
@@ -924,7 +933,7 @@ func Signal(args []string) int {
 	if !heldToMethod(u, "service.signal", p) {
 		return 1
 	}
-	delivered, ok := signalService(u, p.Target.Root, given(p.Runtime), p.Instance, p.Signal)
+	delivered, ok := signalService(u, p.Target.Root, string(given(p.Runtime)), p.Instance, p.Signal)
 	if !ok {
 		return 1
 	}

@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -226,6 +228,28 @@ func TestMarkDelegateSendsWhatTheClientSurfaceSays(t *testing.T) {
 		delete(given, "motivation")
 		if _, err := markParams(motivation, given); err != nil {
 			t.Errorf("the motivation %q cannot be delegated: %v", motivation, err)
+		}
+	}
+}
+
+// The members a delegated mark chooses among are the MarkJobParams union's:
+// a member the spec gains fails here until a mark can be delegated for it.
+func TestMarkJobMembersAreTheUnionsMembers(t *testing.T) {
+	var read, stated []string
+	for _, member := range markJobMembers {
+		read = append(read, reflect.TypeOf(member).Name())
+	}
+	for _, member := range readSpecSchema(t, "MarkJobParams.json").OneOf {
+		stated = append(stated, strings.TrimSuffix(filepath.Base(member.Ref), ".json"))
+	}
+	sort.Strings(read)
+	sort.Strings(stated)
+	if len(stated) == 0 || !slices.Equal(read, stated) {
+		t.Errorf("a delegated mark chooses among %v; the spec's MarkJobParams is one of %v", read, stated)
+	}
+	for motivation := range markJobSchemas(t) {
+		if _, delegable := markJobMember(motivation); !delegable {
+			t.Errorf("no member of markJobMembers states the motivation %q", motivation)
 		}
 	}
 }

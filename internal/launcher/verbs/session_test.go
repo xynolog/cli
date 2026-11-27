@@ -39,6 +39,7 @@ import (
 	"github.com/xynolog/cli/internal/launcher/harness"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 
 	"github.com/xynolog/sdk/go/bus"
 )
@@ -114,9 +115,9 @@ func renewed() string {
 func storeSession(t *testing.T, issuer *issuerStub, lifetime time.Duration) {
 	t.Helper()
 	store := xynolog.NewSignInStore(filepath.Join(launcher.StateDir(), xynolog.SignInFile))
-	if err := store.Entry(localKey).Keep(context.Background(), xynolog.HeldSignIn{
+	if err := store.Entry(localKey).Keep(context.Background(), api.StoredSession{
 		Access: tokenTagged("token-1", lifetime), Refresh: "refresh-1",
-		ClientID: xynolog.ScriptClientID, TokenEndpoint: issuer.URL + "/token",
+		ClientId: xynolog.ScriptClientID, TokenEndpoint: issuer.URL + "/token",
 	}); err != nil {
 		t.Fatal(err)
 	}

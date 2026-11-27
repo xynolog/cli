@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 var controlSpecDir = filepath.Join("..", "..", "protocol", "specs", "src", "control")
@@ -335,14 +337,14 @@ func TestControlArgvCensus(t *testing.T) {
 	params := methodParams(t)
 	builders := map[string]func(text []byte) []string{
 		"stack.start": func(text []byte) []string {
-			var p ControlStackStartParams
+			var p api.StackStartParams
 			if err := json.Unmarshal(text, &p); err != nil {
 				t.Fatal(err)
 			}
 			return startArgs(p)
 		},
 		"stack.stop": func(text []byte) []string {
-			var p ControlStackStopParams
+			var p api.StackStopParams
 			if err := json.Unmarshal(text, &p); err != nil {
 				t.Fatal(err)
 			}
@@ -399,22 +401,23 @@ func TestControlRuntimesAreTheLaunchers(t *testing.T) {
 func TestControlServiceGroupsAreTheLaunchers(t *testing.T) {
 	var groups []string
 	for _, g := range serviceGroups {
-		groups = append(groups, g.name)
+		groups = append(groups, string(g.name))
 	}
 	if got := schemaEnum(t, "ServiceGroup.json"); !slices.Equal(got, groups) {
 		t.Errorf("ServiceGroup.json names %v; the launcher's groups are %v", got, groups)
 	}
 }
 
-// What a setting applies to, as Setting.json names it, is what the settings
-// table's settings apply to.
+// Each thing a setting can apply to, as Setting.json names it, is what some
+// setting of the settings table applies to.
 func TestControlSettingsApplyAsTheTableSays(t *testing.T) {
-	if got, want := schemaEnum(t, "Setting.json", "appliesTo"), []string{appliesToMachine, appliesToKB}; !slices.Equal(got, want) {
-		t.Errorf("Setting.json's settings apply to %v; the settings table's, to %v", got, want)
-	}
+	applied := map[api.SettingAppliesTo]bool{}
 	for _, s := range settingsTable {
-		if s.appliesTo != appliesToMachine && s.appliesTo != appliesToKB {
-			t.Errorf("%s applies to %q, which Setting.json does not name", s.name, s.appliesTo)
+		applied[s.appliesTo] = true
+	}
+	for _, appliesTo := range schemaEnum(t, "Setting.json", "appliesTo") {
+		if !applied[api.SettingAppliesTo(appliesTo)] {
+			t.Errorf("Setting.json names %q, and no setting of the settings table applies to it", appliesTo)
 		}
 	}
 }

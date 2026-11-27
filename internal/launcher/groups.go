@@ -6,12 +6,14 @@ package launcher
 import (
 	"slices"
 	"strings"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // serviceGroup: roles that are part of one thing, in the order status reads
 // them.
 type serviceGroup struct {
-	name  string
+	name  api.ServiceGroup
 	roles []string
 }
 
@@ -26,17 +28,17 @@ func (g serviceGroup) shared() bool { return slices.ContainsFunc(g.roles, shared
 // agents work on it. The providers serve every knowledge base its models, and
 // the telemetry watches them all.
 var serviceGroups = []serviceGroup{
-	{"record", []string{"gateway", "archivist", "dispatcher", "messaging"}},
-	{"index", []string{"librarian", "smelter", "weaver", "graph", "vectors"}},
-	{"issuer", []string{"identity", "identity-store"}},
-	{"knowledge-workers", []string{"browser", "worker"}},
-	{"providers", []string{"inference", "embedding"}},
-	{"telemetry", []string{"collector", "traces", "metrics"}},
+	{api.ServiceGroupRecord, []string{"gateway", "archivist", "dispatcher", "messaging"}},
+	{api.ServiceGroupIndex, []string{"librarian", "smelter", "weaver", "graph", "vectors"}},
+	{api.ServiceGroupIssuer, []string{"identity", "identity-store"}},
+	{api.ServiceGroupKnowledgeWorkers, []string{"browser", "worker"}},
+	{api.ServiceGroupProviders, []string{"inference", "embedding"}},
+	{api.ServiceGroupTelemetry, []string{"collector", "traces", "metrics"}},
 }
 
 // groupNamed: the group called name, as --group takes it.
 func groupNamed(name string) (serviceGroup, bool) {
-	i := slices.IndexFunc(serviceGroups, func(g serviceGroup) bool { return g.name == name })
+	i := slices.IndexFunc(serviceGroups, func(g serviceGroup) bool { return string(g.name) == name })
 	if i < 0 {
 		return serviceGroup{}, false
 	}
@@ -47,7 +49,7 @@ func groupNamed(name string) (serviceGroup, bool) {
 var groupList = func() string {
 	names := make([]string, len(serviceGroups))
 	for i, g := range serviceGroups {
-		names[i] = g.name
+		names[i] = string(g.name)
 	}
 	return strings.Join(names[:len(names)-1], ", ") + ", or " + names[len(names)-1]
 }()

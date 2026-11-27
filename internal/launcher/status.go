@@ -17,6 +17,7 @@ import (
 	"time"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 )
 
 const statusUsage = `Usage: xynolog status [--root <path|name>] [--repo <owner/name> [--refresh]] [--service <name>] [--runtime container|docker|podman] [--verbose] [--billing]
@@ -863,7 +864,7 @@ func printKnowledgeBase(u *UI, v stackView, shared map[string]*ServiceState, rea
 			items = append(items, compactItem(u, r))
 			rows = append(rows, r)
 		}
-		field(g.name, strings.Join(items, "  "))
+		field(string(g.name), strings.Join(items, "  "))
 	}
 	// The issuer is the machine's, shown once among the shared groups; the
 	// knowledge base's line is where it signs in: its realm there, or an
@@ -900,7 +901,7 @@ type sharedRow struct {
 // whether every counted one is healthy. The Browser is reported and never
 // counted: a stack is healthy whether or not anyone is viewing it.
 func printSharedGroup(u *UI, g serviceGroup, views []stackView, ss *StackSet, ceilings func(stackView) modelCeilings) bool {
-	u.Section(strings.ToUpper(strings.ReplaceAll(g.name, "-", " ")))
+	u.Section(strings.ToUpper(strings.ReplaceAll(string(g.name), "-", " ")))
 	printRowHeader()
 	healthy := true
 	for _, role := range g.roles {
@@ -1170,7 +1171,7 @@ type knownRoot struct {
 	path string
 	// current: how this command's directory selects it — "cwd" standing in
 	// it, "xynolog-root" by XYNOLOG_ROOT — or "" when it does not.
-	current string
+	current api.RootCurrent
 	running bool
 	// entry: its registry row; nil when it is not registered.
 	entry *rootEntry
@@ -1326,7 +1327,7 @@ func printSessions(u *UI, ss *StackSet) {
 	sort.Strings(keys)
 	for _, k := range keys {
 		e := toks[k]
-		state := sessionUnverified
+		state := api.SessionStateUnverified
 		if base, err := reachedAt(ss, k); err == nil {
 			state = storedTokenState(base, e.Token)
 		}
@@ -1338,25 +1339,16 @@ func printSessions(u *UI, ss *StackSet) {
 	}
 }
 
-// The states of a stored sign-in: what the gateway says of its token, or
-// that there is none.
-const (
-	sessionValid      = "valid"
-	sessionExpired    = "expired"
-	sessionUnverified = "unverified"
-	sessionNone       = "none"
-)
-
 // sessionStateText: each state of a stored sign-in, as status says it.
-var sessionStateText = map[string]string{
-	sessionValid:      "valid",
-	sessionExpired:    "expired (auto-refreshes on next use, or xynolog login)",
-	sessionUnverified: "unverified (stack not reachable)",
+var sessionStateText = map[api.SessionState]string{
+	api.SessionStateValid:      "valid",
+	api.SessionStateExpired:    "expired (auto-refreshes on next use, or xynolog login)",
+	api.SessionStateUnverified: "unverified (stack not reachable)",
 }
 
 // storedTokenState is what the gateway at base says of a stored token: asked
 // once, by a transport that opens no stream and renews nothing.
-func storedTokenState(base, token string) string {
+func storedTokenState(base, token string) api.SessionState {
 	asker := xynolog.NewHTTPTransport(xynolog.HTTPTransportConfig{
 		BaseURL: base, Token: xynolog.NewVariable(token),
 		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming(),
@@ -1368,11 +1360,11 @@ func storedTokenState(base, token string) string {
 	var refused *xynolog.TransportError
 	switch {
 	case err == nil:
-		return sessionValid
+		return api.SessionStateValid
 	case errors.As(err, &refused) && refused.Code == xynolog.TransportErrorCodeUnauthorized:
-		return sessionExpired
+		return api.SessionStateExpired
 	}
-	return sessionUnverified
+	return api.SessionStateUnverified
 }
 
 // printLauncherPaths reports the host-side paths the launcher keeps things

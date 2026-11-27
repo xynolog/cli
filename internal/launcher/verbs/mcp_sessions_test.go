@@ -20,6 +20,7 @@ import (
 	launcher "github.com/xynolog/cli/internal/launcher"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 	"github.com/xynolog/sdk/go/bus"
 	"github.com/xynolog/sdk/go/xynologtest"
 )
@@ -103,8 +104,8 @@ func recordCodespace(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := xynolog.NewSignInStore(filepath.Join(launcher.StateDir(), xynolog.SignInFile))
-	if err := store.Entry("codespace:o/n").Keep(context.Background(), xynolog.HeldSignIn{
-		Access: tokenTagged("cs-token", 300*time.Second), ClientID: xynolog.ScriptClientID,
+	if err := store.Entry("codespace:o/n").Keep(context.Background(), api.StoredSession{
+		Access: tokenTagged("cs-token", 300*time.Second), ClientId: xynolog.ScriptClientID,
 	}); err != nil {
 		t.Fatal(err)
 	}

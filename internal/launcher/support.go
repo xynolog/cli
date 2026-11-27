@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // --- Output helpers ---
@@ -33,7 +35,7 @@ type UI struct {
 	color bool
 	// said: where a control request's lines go, each with its kind (a
 	// Progress kind), in place of the terminal. nil for a person's UI.
-	said func(kind, text string)
+	said func(kind api.ProgressKind, text string)
 	// refused: what a control request's operation refused with, which its
 	// error states. Shared by every UI derived from the request's.
 	refused *refusal
@@ -45,11 +47,11 @@ type UI struct {
 type refusal struct {
 	made          bool
 	code, message string
-	choices       []ControlTarget
+	choices       []api.Target
 }
 
 // record keeps the first refusal said through u, whole.
-func (u *UI) record(code string, choices []ControlTarget, line string) {
+func (u *UI) record(code string, choices []api.Target, line string) {
 	if u.refused != nil && !u.refused.made {
 		*u.refused = refusal{made: true, code: code, message: line, choices: choices}
 	}
@@ -67,7 +69,7 @@ func (u *UI) quieted(quiet bool) *UI {
 
 // say prints line as format prints it to w, or, for a control request, says
 // it as kind.
-func (u *UI) say(w io.Writer, kind, format, line string) {
+func (u *UI) say(w io.Writer, kind api.ProgressKind, format, line string) {
 	if u.said != nil {
 		u.said(kind, line)
 		return
@@ -132,7 +134,7 @@ func (u *UI) RefusePlain(code, format string, a ...any) {
 }
 
 // RefuseChoosing is Refuse naming the targets a person could have meant.
-func (u *UI) RefuseChoosing(code string, choices []ControlTarget, format string, a ...any) {
+func (u *UI) RefuseChoosing(code string, choices []api.Target, format string, a ...any) {
 	line := fmt.Sprintf(format, a...)
 	u.record(code, choices, line)
 	u.say(os.Stderr, "fail", u.Wrap(AnsiRed, "✗")+" %s\n", line)

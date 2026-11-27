@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/xynolog/cli/internal/launcher/stack"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // KB-root discovery: XYNOLOG_ROOT is an explicit override analogous to
@@ -633,10 +634,10 @@ func forgetRoot(u *UI, arg string) (forgotten, bool) {
 		fmt.Fprintln(os.Stderr, "  Registered roots: xynolog roots")
 		return forgotten{}, false
 	case len(matches) > 1:
-		var choices []ControlTarget
+		var choices []api.Target
 		for _, i := range matches {
 			path := reg.Roots[i].Path
-			choices = append(choices, ControlTarget{Kind: "local", Root: &path})
+			choices = append(choices, api.Target{Kind: "local", Root: &path})
 		}
 		u.RefuseChoosing(controlCodeTargetAmbiguous, choices, "%q names %d registered roots — forget one by its full path:", arg, len(matches))
 		for _, i := range matches {

@@ -8,7 +8,6 @@ package verbs
 // creates and follows (job.go).
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -128,31 +127,47 @@ func markParams(motivation api.Motivation, given map[string]any) (api.MarkJobPar
 	if !motivation.Valid() {
 		return params, fmt.Errorf("--motivation wants a motivation a mark can be delegated for, got %q", motivation)
 	}
+	member, delegable := markJobMember(motivation)
+	if !delegable {
+		return params, fmt.Errorf("--motivation wants a motivation a mark can be delegated for, got %q", motivation)
+	}
 	described := map[string]any{"motivation": motivation}
 	for param, value := range given {
 		described[param] = value
 	}
-	// The union says which generated type holds this motivation's parameters.
-	written, err := json.Marshal(described)
-	if err == nil {
-		err = params.UnmarshalJSON(written)
-	}
-	if err != nil {
-		return params, err
-	}
-	generated, err := params.ValueByDiscriminator()
-	if err != nil {
-		return params, err
-	}
-	held := reflect.New(reflect.TypeOf(generated))
+	held := reflect.New(reflect.TypeOf(member))
 	if err := jobParams(described, markJobFlags, held.Interface(), string(motivation)); err != nil {
 		return params, err
 	}
 	// What is sent is what that type writes.
-	if written, err = json.Marshal(held.Interface()); err == nil {
-		err = params.UnmarshalJSON(written)
-	}
+	err := params.From(held.Elem().Interface().(api.MarkJobParamsMember))
 	return params, err
+}
+
+// markJobMembers: the members of MarkJobParams, one generated type for each
+// motivation a mark can be delegated for.
+// TestMarkJobMembersAreTheUnionsMembers holds the list to the union's schema.
+var markJobMembers = []api.MarkJobParamsMember{
+	api.HighlightingJobParams{},
+	api.CommentingJobParams{},
+	api.AssessingJobParams{},
+	api.LinkingJobParams{},
+	api.TaggingJobParams{},
+}
+
+// markJobMember: the member of MarkJobParams that holds motivation's
+// parameters, as the union itself tells its members apart.
+func markJobMember(motivation api.Motivation) (api.MarkJobParamsMember, bool) {
+	for _, member := range markJobMembers {
+		var params api.MarkJobParams
+		if err := params.From(member); err != nil {
+			continue
+		}
+		if stated, err := params.Discriminator(); err == nil && stated == string(motivation) {
+			return member, true
+		}
+	}
+	return nil, false
 }
 
 func Mark(args []string) int {

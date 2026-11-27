@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 const (
@@ -61,7 +63,7 @@ func TestControlInitHelper(t *testing.T) {
 	}
 }
 
-func controlInitParamsJSON(t *testing.T, p ControlRootsInitParams) []byte {
+func controlInitParamsJSON(t *testing.T, p api.RootsInitParams) []byte {
 	t.Helper()
 	encoded, err := json.Marshal(p)
 	if err != nil {
@@ -70,11 +72,11 @@ func controlInitParamsJSON(t *testing.T, p ControlRootsInitParams) []byte {
 	return encoded
 }
 
-func controlInitRequest(ctx context.Context, p ControlRootsInitParams) *controlRequest {
+func controlInitRequest(ctx context.Context, p api.RootsInitParams) *controlRequest {
 	return &controlRequest{ctx: ctx, method: controlMethod{name: "roots.init"}, params: controlInitParamsJSONForRequest(p)}
 }
 
-func controlInitParamsJSONForRequest(p ControlRootsInitParams) json.RawMessage {
+func controlInitParamsJSONForRequest(p api.RootsInitParams) json.RawMessage {
 	encoded, _ := json.Marshal(p)
 	return encoded
 }
@@ -82,7 +84,7 @@ func controlInitParamsJSONForRequest(p ControlRootsInitParams) json.RawMessage {
 func controlInitUI() (*UI, *[]string) {
 	var lines []string
 	refused := &refusal{}
-	return &UI{said: func(_ string, line string) { lines = append(lines, line) }, refused: refused}, &lines
+	return &UI{said: func(_ api.ProgressKind, line string) { lines = append(lines, line) }, refused: refused}, &lines
 }
 
 func controlInitCommand(t *testing.T) (func(context.Context, string, ...string) *exec.Cmd, string) {
@@ -101,10 +103,11 @@ func controlInitCommand(t *testing.T) (func(context.Context, string, ...string) 
 func TestControlRootsInitRunsLauncherInitWithConfiguredFlags(t *testing.T) {
 	root := t.TempDir()
 	command, recordPath := controlInitCommand(t)
-	name, siteName, inference, model := "Research KB", "Research", "ollama", "llama3"
+	name, siteName, model := "Research KB", "Research", "llama3"
+	inference := api.RootsInitParamsInferenceOllama
 	modelLight, embedding, configName := "llama3:lite", "nomic-embed-text", "ollama-local"
 	endpoint, ollamaBase, registry := "https://api.example.test", "http://localhost:11434", "registry.example.test"
-	p := ControlRootsInitParams{
+	p := api.RootsInitParams{
 		ApiVersion: controlAPIVersion, Path: root, Domain: "owner.github.io:research",
 		Name: &name, SiteName: &siteName, Inference: &inference, Model: &model, ModelLight: &modelLight,
 		Embedding: &embedding, ConfigName: &configName, AnthropicEndpoint: &endpoint,
@@ -117,7 +120,7 @@ func TestControlRootsInitRunsLauncherInitWithConfiguredFlags(t *testing.T) {
 	if failure != nil {
 		t.Fatalf("init failed: %+v", failure)
 	}
-	if result != (ControlRootsInitResult{Path: root}) {
+	if result != (api.RootsInitResult{Path: root}) {
 		t.Fatalf("result = %#v", result)
 	}
 
@@ -131,7 +134,7 @@ func TestControlRootsInitRunsLauncherInitWithConfiguredFlags(t *testing.T) {
 	}
 	wantArgs := []string{
 		"init", "--yes", "--domain", p.Domain,
-		"--name", name, "--site-name", siteName, "--inference", inference,
+		"--name", name, "--site-name", siteName, "--inference", string(inference),
 		"--model", model, "--model-light", modelLight,
 		"--embedding", "ollama:" + embedding, "--config-name", configName,
 		"--anthropic-endpoint", endpoint, "--ollama-base", ollamaBase,
@@ -168,7 +171,7 @@ func TestControlRootsInitValidatesPathAndExecutable(t *testing.T) {
 				}
 			}
 			u, _ := controlInitUI()
-			p := ControlRootsInitParams{Path: test.path, Domain: "example.test"}
+			p := api.RootsInitParams{Path: test.path, Domain: "example.test"}
 			_, failure := controlRootsInitWith(controlInitRequest(ctx, p), u, os.Executable,
 				func(context.Context, string, ...string) *exec.Cmd { t.Fatal("must not execute"); return nil })
 			if failure == nil || failure.code != controlCodeInvalidRequest {
@@ -180,7 +183,7 @@ func TestControlRootsInitValidatesPathAndExecutable(t *testing.T) {
 	root := t.TempDir()
 	u, _ := controlInitUI()
 	_, failure := controlRootsInitWith(
-		controlInitRequest(ctx, ControlRootsInitParams{Path: root, Domain: "example.test"}),
+		controlInitRequest(ctx, api.RootsInitParams{Path: root, Domain: "example.test"}),
 		u,
 		func() (string, error) { return "", errors.New("no executable") },
 		func(context.Context, string, ...string) *exec.Cmd { t.Fatal("must not execute"); return nil },
@@ -193,7 +196,7 @@ func TestControlRootsInitValidatesPathAndExecutable(t *testing.T) {
 func TestControlRootsInitDecodesParamsAndReportsFailures(t *testing.T) {
 	root := t.TempDir()
 	u, _ := controlInitUI()
-	req := controlInitRequest(context.Background(), ControlRootsInitParams{Path: root})
+	req := controlInitRequest(context.Background(), api.RootsInitParams{Path: root})
 	req.params = json.RawMessage(`{"path":5}`)
 	if _, failure := controlRootsInitWith(req, u, os.Executable, exec.CommandContext); failure == nil || failure.code != controlCodeInvalidParams {
 		t.Fatalf("decode failure = %+v, want invalid params", failure)
@@ -207,7 +210,7 @@ func TestControlRootsInitDecodesParamsAndReportsFailures(t *testing.T) {
 	t.Setenv("CONTROL_INIT_STDOUT", "preparing\n")
 	t.Setenv("CONTROL_INIT_STDERR", "registry unavailable\n")
 	u, lines := controlInitUI()
-	p := ControlRootsInitParams{Path: root, Domain: "example.test"}
+	p := api.RootsInitParams{Path: root, Domain: "example.test"}
 	_, failure := controlRootsInitWith(controlInitRequest(context.Background(), p), u, os.Executable, command)
 	if failure == nil || failure.code != controlCodeFailed || !strings.Contains(failure.message, "registry unavailable") {
 		t.Fatalf("failure = %+v, want captured launcher output", failure)
@@ -246,7 +249,7 @@ func TestControlRootsInitCancellationAndOutputHelpers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	u, _ := controlInitUI()
-	p := ControlRootsInitParams{Path: root, Domain: "example.test"}
+	p := api.RootsInitParams{Path: root, Domain: "example.test"}
 	_, failure := controlRootsInitWith(controlInitRequest(ctx, p), u, os.Executable, exec.CommandContext)
 	if failure == nil || failure.code != controlCodeCancelled {
 		t.Fatalf("failure = %+v, want cancellation", failure)

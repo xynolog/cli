@@ -20,7 +20,6 @@ import (
 
 	launcher "github.com/xynolog/cli/internal/launcher"
 
-	xynolog "github.com/xynolog/sdk/go"
 	"github.com/xynolog/sdk/go/api"
 )
 
@@ -177,7 +176,7 @@ options:
 		if limit == 0 {
 			limit = 20
 		}
-		filters := xynolog.ResourceFilters{Limit: limit}
+		filters := api.ResourceSearchFilters{Limit: &limit}
 		if entityType != "" {
 			filters.EntityType = &entityType
 		}

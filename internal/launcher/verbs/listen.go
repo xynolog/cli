@@ -237,7 +237,7 @@ func prefetchResourceNames(c *launcher.VerbClient) map[string]string {
 	names := map[string]string{}
 	ctx, cancel := context.WithTimeout(c.Context(), prefetchTimeout)
 	defer cancel()
-	page, err := c.Browse.Resources(xynolog.ResourceFilters{Limit: prefetchLimit}).Fresh(ctx)
+	page, err := c.Browse.Resources(api.BrowseResourcesRequest{Limit: new(prefetchLimit)}).Fresh(ctx)
 	if err != nil {
 		return names
 	}
