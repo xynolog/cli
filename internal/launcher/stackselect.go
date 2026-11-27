@@ -35,7 +35,7 @@ func SelectVerbStack(u *UI, verb string, ss *StackSet, repo, root string, wantLo
 	// silently resolve one of them and ignore the other, targeting the wrong
 	// KB.
 	if repo != "" && (wantLocal || root != "") {
-		u.Refuse(controlCodeInvalidRequest, "--repo and --root or --runtime are contradictory: one names a codespace stack, the other a local one.")
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "--repo and --root or --runtime are contradictory: one names a codespace stack, the other a local one.")
 		return nil, false
 	}
 	if repo != "" {
@@ -46,7 +46,7 @@ func SelectVerbStack(u *UI, verb string, ss *StackSet, repo, root string, wantLo
 	}
 	cwdRoot, err := CwdKBRoot()
 	if err != nil {
-		u.Refuse(controlCodeRootNotFound, "%v", err)
+		u.Refuse(api.ControlErrorCodeRootNotFound, "%v", err)
 		return nil, false
 	}
 	locals, cs := localStacks(ss), codespaceStacks(ss)
@@ -81,7 +81,7 @@ func SelectVerbStack(u *UI, verb string, ss *StackSet, repo, root string, wantLo
 			return c, true
 		}
 	}
-	u.RefuseChoosing(controlCodeTargetRequired, stackChoices(locals, cs), "Multiple stacks are recorded — say which:")
+	u.RefuseChoosing(api.ControlErrorCodeTargetRequired, stackChoices(locals, cs), "Multiple stacks are recorded — say which:")
 	printStackMenu(verb, "", locals, cs)
 	return nil, false
 }
@@ -111,10 +111,10 @@ func refuseRoot(u *UI, err error) {
 			path := p
 			choices = append(choices, api.Target{Kind: "local", Root: &path})
 		}
-		u.RefuseChoosing(controlCodeTargetAmbiguous, choices, "%v", err)
+		u.RefuseChoosing(api.ControlErrorCodeTargetAmbiguous, choices, "%v", err)
 		return
 	}
-	u.Refuse(controlCodeRootNotFound, "%v", err)
+	u.Refuse(api.ControlErrorCodeRootNotFound, "%v", err)
 }
 
 // printStackMenu lists the commands that name each of the stacks, for a
@@ -142,11 +142,11 @@ func rootLocalStack(u *UI, ss *StackSet, root string) (*StackState, bool) {
 	st := localStack(ss, kbRoot{dir: dir, ident: ident}.key())
 	switch {
 	case st == nil:
-		u.Refuse(controlCodeStackNotRunning, "No stack of %s is recorded (per %s).", dir, statePath())
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "No stack of %s is recorded (per %s).", dir, statePath())
 		fmt.Fprintln(os.Stderr, "  Start it:  xynolog start --root "+dir)
 		return nil, false
 	case st.KBRoot != dir:
-		u.Refuse(controlCodeStackNotRunning, "%s's stack runs from %s, not %s (per %s).", ident.didWeb(), st.KBRoot, dir, statePath())
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "%s's stack runs from %s, not %s (per %s).", ident.didWeb(), st.KBRoot, dir, statePath())
 		return nil, false
 	}
 	return st, true
@@ -169,7 +169,7 @@ func repoCodespaceStack(u *UI, ss *StackSet, repo string) (*StackState, bool) {
 		return nil, false
 	}
 	if !found {
-		u.Refuse(controlCodeStackNotRunning, "%s has no codespace.", repo)
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "%s has no codespace.", repo)
 		for _, c := range codespaceStacks(ss) {
 			fmt.Fprintf(os.Stderr, "    recorded: %s\n", c.Codespace.Repo)
 		}
@@ -226,7 +226,7 @@ func forwardedBase(u *UI, target *StackState, verb string) (string, bool) {
 	base, err := CodespaceBase(target)
 	var unreachable *CodespaceUnreachable
 	if errors.As(err, &unreachable) {
-		u.Refuse(controlCodeUnreachable, "%v, so %s cannot reach its KB.", unreachable, verb)
+		u.Refuse(api.ControlErrorCodeUnreachable, "%v, so %s cannot reach its KB.", unreachable, verb)
 		said, command := unreachable.Remedy()
 		fmt.Fprintf(os.Stderr, "  %s:  %s\n", said, command)
 		return "", false

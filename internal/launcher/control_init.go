@@ -31,18 +31,18 @@ func controlRootsInitWith(
 	}
 	if !filepath.IsAbs(p.Path) {
 		u.Fail("the knowledge base path must be absolute: %s", p.Path)
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	info, err := os.Stat(p.Path)
 	if err != nil || !info.IsDir() {
 		u.Fail("the knowledge base directory must already exist: %s", p.Path)
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 
 	executable, err := findExecutable()
 	if err != nil {
 		u.Fail("cannot locate the launcher executable: %v", err)
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	args := []string{"init", "--yes", "--domain", p.Domain}
 	add := func(flag string, value *string) {
@@ -80,7 +80,7 @@ func controlRootsInitWith(
 			message = err.Error()
 		}
 		u.Fail("xynolog init failed: %s", message)
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.RootsInitResult{Path: p.Path}, nil
 }

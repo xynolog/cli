@@ -22,6 +22,7 @@ import (
 	"time"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 )
 
 // startLockBudget bounds how long a start waits for another on the same root.
@@ -87,7 +88,7 @@ func acquireStartLock(u *UI, key string) bool {
 		}
 		if time.Since(t0) >= startLockBudget {
 			f.Close()
-			u.Refuse(controlCodeStartInProgress, "Another xynolog start has held this KB for %s (%s).", took(startLockBudget), startLockHolder(p))
+			u.Refuse(api.ControlErrorCodeStartInProgress, "Another xynolog start has held this KB for %s (%s).", took(startLockBudget), startLockHolder(p))
 			fmt.Fprintln(os.Stderr, "  If that process is gone, its lock went with it; if it is wedged, stop it and retry.")
 			return false
 		}

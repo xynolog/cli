@@ -23,11 +23,11 @@ func TestRunEnvironment(t *testing.T) {
 		image imageRun
 		code  api.ControlErrorCode
 	}{
-		{"the supervisor", runSpec{environment: map[string]string{"XYNOLOG_SUPERVISE": "1"}}, alpine, controlCodeInvalidRequest},
-		{"a name holding =", runSpec{environment: map[string]string{"A=B": "x"}}, alpine, controlCodeInvalidRequest},
-		{"a name holding a line break", runSpec{environment: map[string]string{"A\nB": "x"}}, alpine, controlCodeInvalidRequest},
-		{"a value holding a line break", runSpec{environment: map[string]string{"A": "x\ny"}}, alpine, controlCodeInvalidRequest},
-		{"PATH beside pathFirst", runSpec{environment: map[string]string{"PATH": "/x"}, pathFirst: []string{"/t"}}, alpine, controlCodeInvalidRequest},
+		{"the supervisor", runSpec{environment: map[string]string{"XYNOLOG_SUPERVISE": "1"}}, alpine, api.ControlErrorCodeInvalidRequest},
+		{"a name holding =", runSpec{environment: map[string]string{"A=B": "x"}}, alpine, api.ControlErrorCodeInvalidRequest},
+		{"a name holding a line break", runSpec{environment: map[string]string{"A\nB": "x"}}, alpine, api.ControlErrorCodeInvalidRequest},
+		{"a value holding a line break", runSpec{environment: map[string]string{"A": "x\ny"}}, alpine, api.ControlErrorCodeInvalidRequest},
+		{"PATH beside pathFirst", runSpec{environment: map[string]string{"PATH": "/x"}, pathFirst: []string{"/t"}}, alpine, api.ControlErrorCodeInvalidRequest},
 		{"pathFirst with an image that states no PATH", runSpec{pathFirst: []string{"/t"}}, imageRun{cmd: alpine.cmd}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {

@@ -174,7 +174,7 @@ func TestControlRootsInitValidatesPathAndExecutable(t *testing.T) {
 			p := api.RootsInitParams{Path: test.path, Domain: "example.test"}
 			_, failure := controlRootsInitWith(controlInitRequest(ctx, p), u, os.Executable,
 				func(context.Context, string, ...string) *exec.Cmd { t.Fatal("must not execute"); return nil })
-			if failure == nil || failure.code != controlCodeInvalidRequest {
+			if failure == nil || failure.code != api.ControlErrorCodeInvalidRequest {
 				t.Fatalf("failure = %+v, want invalid request", failure)
 			}
 		})
@@ -188,7 +188,7 @@ func TestControlRootsInitValidatesPathAndExecutable(t *testing.T) {
 		func() (string, error) { return "", errors.New("no executable") },
 		func(context.Context, string, ...string) *exec.Cmd { t.Fatal("must not execute"); return nil },
 	)
-	if failure == nil || failure.code != controlCodeFailed || !strings.Contains(failure.message, "no executable") {
+	if failure == nil || failure.code != api.ControlErrorCodeFailed || !strings.Contains(failure.message, "no executable") {
 		t.Fatalf("failure = %+v, want executable lookup failure", failure)
 	}
 }
@@ -198,10 +198,10 @@ func TestControlRootsInitDecodesParamsAndReportsFailures(t *testing.T) {
 	u, _ := controlInitUI()
 	req := controlInitRequest(context.Background(), api.RootsInitParams{Path: root})
 	req.params = json.RawMessage(`{"path":5}`)
-	if _, failure := controlRootsInitWith(req, u, os.Executable, exec.CommandContext); failure == nil || failure.code != controlCodeInvalidParams {
+	if _, failure := controlRootsInitWith(req, u, os.Executable, exec.CommandContext); failure == nil || failure.code != api.ControlErrorCodeInvalidParams {
 		t.Fatalf("decode failure = %+v, want invalid params", failure)
 	}
-	if _, failure := controlRootsInit(req, u); failure == nil || failure.code != controlCodeInvalidParams {
+	if _, failure := controlRootsInit(req, u); failure == nil || failure.code != api.ControlErrorCodeInvalidParams {
 		t.Fatalf("registered handler failure = %+v, want invalid params", failure)
 	}
 
@@ -212,7 +212,7 @@ func TestControlRootsInitDecodesParamsAndReportsFailures(t *testing.T) {
 	u, lines := controlInitUI()
 	p := api.RootsInitParams{Path: root, Domain: "example.test"}
 	_, failure := controlRootsInitWith(controlInitRequest(context.Background(), p), u, os.Executable, command)
-	if failure == nil || failure.code != controlCodeFailed || !strings.Contains(failure.message, "registry unavailable") {
+	if failure == nil || failure.code != api.ControlErrorCodeFailed || !strings.Contains(failure.message, "registry unavailable") {
 		t.Fatalf("failure = %+v, want captured launcher output", failure)
 	}
 	if !strings.Contains(strings.Join(*lines, "\n"), "preparing") || !strings.Contains(strings.Join(*lines, "\n"), "registry unavailable") {
@@ -225,7 +225,7 @@ func TestControlRootsInitDecodesParamsAndReportsFailures(t *testing.T) {
 			return exec.CommandContext(ctx, filepath.Join(root, "missing-launcher"))
 		})
 	// Each system words a missing program its own way; each names it.
-	if failure == nil || failure.code != controlCodeFailed || !strings.Contains(failure.message, "missing-launcher") {
+	if failure == nil || failure.code != api.ControlErrorCodeFailed || !strings.Contains(failure.message, "missing-launcher") {
 		t.Fatalf("failure = %+v, want the launch of missing-launcher refused", failure)
 	}
 }
@@ -251,7 +251,7 @@ func TestControlRootsInitCancellationAndOutputHelpers(t *testing.T) {
 	u, _ := controlInitUI()
 	p := api.RootsInitParams{Path: root, Domain: "example.test"}
 	_, failure := controlRootsInitWith(controlInitRequest(ctx, p), u, os.Executable, exec.CommandContext)
-	if failure == nil || failure.code != controlCodeCancelled {
+	if failure == nil || failure.code != api.ControlErrorCodeCancelled {
 		t.Fatalf("failure = %+v, want cancellation", failure)
 	}
 

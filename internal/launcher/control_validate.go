@@ -74,7 +74,7 @@ func (s *controlSchemas) schema(id string) (*jsonschema.Schema, error) {
 // admits.
 func (s *controlSchemas) checkParams(method controlMethod, params json.RawMessage) *controlFailure {
 	invalid := func(message string, fields []api.FieldFault) *controlFailure {
-		return &controlFailure{code: controlCodeInvalidParams, message: message, fields: fields, rpcCode: api.ControlRpcCodeInvalidParams}
+		return &controlFailure{code: api.ControlErrorCodeInvalidParams, message: message, fields: fields, rpcCode: api.ControlRpcCodeInvalidParams}
 	}
 	trimmed := bytes.TrimSpace(params)
 	if len(trimmed) == 0 || trimmed[0] != '{' {
@@ -89,7 +89,7 @@ func (s *controlSchemas) checkParams(method controlMethod, params json.RawMessag
 	if stated.APIVersion != nil {
 		var version string
 		if json.Unmarshal(*stated.APIVersion, &version) == nil && version != controlAPIVersion {
-			return &controlFailure{code: controlCodeUnsupportedApiVersion, rpcCode: api.ControlRpcCodeInvalidParams,
+			return &controlFailure{code: api.ControlErrorCodeUnsupportedApiVersion, rpcCode: api.ControlRpcCodeInvalidParams,
 				message:   fmt.Sprintf("this launcher speaks %s, not %s", controlAPIVersion, version),
 				supported: []string{controlAPIVersion}}
 		}

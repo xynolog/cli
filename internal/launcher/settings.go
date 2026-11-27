@@ -279,7 +279,7 @@ func settingsNamed(u *UI, name, flag string) ([]setting, bool) {
 		}
 	}
 	if rows == nil {
-		u.Refuse(controlCodeUnknownSetting, "Unknown setting %q.", strings.TrimSpace(name+" "+flag))
+		u.Refuse(api.ControlErrorCodeUnknownSetting, "Unknown setting %q.", strings.TrimSpace(name+" "+flag))
 		return nil, false
 	}
 	return rows, true
@@ -309,7 +309,7 @@ func settingsRoot(u *UI, rootArg string) (kbRoot, error, bool) {
 // resolved (rootErr says why).
 func refuseUnrooted(u *UI, s setting, rootErr error) bool {
 	if s.appliesTo == api.SettingAppliesToKnowledgeBase && rootErr != nil {
-		u.Refuse(controlCodeRootNotFound, "%s is a knowledge-base setting: run inside one, or pass --root. (%v)", s.name, rootErr)
+		u.Refuse(api.ControlErrorCodeRootNotFound, "%s is a knowledge-base setting: run inside one, or pass --root. (%v)", s.name, rootErr)
 		return true
 	}
 	return false
@@ -418,10 +418,10 @@ func showDefaultSecretStore(u *UI, kb kbRoot) []settingLine {
 func changeSetting(u *UI, s setting, kb kbRoot, rootErr error, value string, unset bool) bool {
 	switch {
 	case value != "" && unset:
-		u.Refuse(controlCodeInvalidRequest, "Give %s a value or --unset, not both.", s.name)
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "Give %s a value or --unset, not both.", s.name)
 		return false
 	case s.set == nil:
-		u.Refuse(controlCodeInvalidRequest, "%s is changed by %s", s.name, s.changedBy())
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "%s is changed by %s", s.name, s.changedBy())
 		return false
 	case refuseUnrooted(u, s, rootErr):
 		return false
@@ -444,7 +444,7 @@ func changeSetting(u *UI, s setting, kb kbRoot, rootErr error, value string, uns
 // recorded reports a failed save.
 func recorded(u *UI, err error) bool {
 	if err != nil {
-		u.Refuse(controlCodeFailed, "Recording the setting: %v", err)
+		u.Refuse(api.ControlErrorCodeFailed, "Recording the setting: %v", err)
 		return false
 	}
 	return true

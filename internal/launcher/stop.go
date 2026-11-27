@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 var stopUsage = fmt.Sprintf(`Usage: xynolog stop [--service <name> | --group <name>] [--root <path>] [--runtime container|docker|podman] [--repo <owner/name>] [--delete] [--dry-run]
@@ -345,13 +347,13 @@ func Stop(u *UI, args []string) int {
 		var known bool
 		switch g, known = groupNamed(group); {
 		case !known:
-			u.Refuse(controlCodeInvalidService, "Unknown --group '%s' (expected: %s)", group, groupList)
+			u.Refuse(api.ControlErrorCodeInvalidService, "Unknown --group '%s' (expected: %s)", group, groupList)
 			return 1
 		case service != "":
-			u.Refuse(controlCodeInvalidRequest, "--group and --service are contradictory: stop one group, or one service.")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "--group and --service are contradictory: stop one group, or one service.")
 			return 1
 		case repo != "":
-			u.Refuse(controlCodeInvalidRequest, "--group does not apply to a codespace stack (the codespace's own launcher runs its services).")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "--group does not apply to a codespace stack (the codespace's own launcher runs its services).")
 			return 1
 		}
 	}
@@ -412,7 +414,7 @@ func Stop(u *UI, args []string) int {
 		}
 	}
 	if service != "" && !knownRole(service) {
-		u.Refuse(controlCodeInvalidService, "Unknown --service '%s' (expected: %s)", service, roleList)
+		u.Refuse(api.ControlErrorCodeInvalidService, "Unknown --service '%s' (expected: %s)", service, roleList)
 		return 1
 	}
 
@@ -423,7 +425,7 @@ func Stop(u *UI, args []string) int {
 	ss := LoadStackSet()
 	if repo != "" {
 		if root != "" {
-			u.Refuse(controlCodeInvalidRequest, "--repo and --root are contradictory: one names a codespace stack, the other a local one.")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "--repo and --root are contradictory: one names a codespace stack, the other a local one.")
 			return 1
 		}
 		target, ok := repoCodespaceStack(u, ss, repo)
@@ -438,13 +440,13 @@ func Stop(u *UI, args []string) int {
 	}
 	if codespace != nil {
 		if group != "" {
-			u.Refuse(controlCodeInvalidRequest, "--group does not apply to a codespace stack (the codespace's own launcher runs its services).")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "--group does not apply to a codespace stack (the codespace's own launcher runs its services).")
 			return 1
 		}
 		return stopCodespaceAndShared(u, codespace, service, del, dryRun)
 	}
 	if del {
-		u.Refuse(controlCodeInvalidRequest, "--delete only applies to a codespace stack (a local stop already removes the containers).")
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "--delete only applies to a codespace stack (a local stop already removes the containers).")
 		return 1
 	}
 	st := scope.st
@@ -476,7 +478,7 @@ func Stop(u *UI, args []string) int {
 	var runtimes []string
 	if runtime != "" {
 		if !onPath(runtime) {
-			u.RefusePlain(controlCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
+			u.RefusePlain(api.ControlErrorCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
 			return 1
 		}
 		runtimes = []string{runtime}
@@ -491,7 +493,7 @@ func Stop(u *UI, args []string) int {
 		runtimes = installedRuntimes()
 	}
 	if len(runtimes) == 0 {
-		u.Refuse(controlCodeRuntimeUnavailable, "No container runtime found. Install Apple Container, Docker, or Podman.")
+		u.Refuse(api.ControlErrorCodeRuntimeUnavailable, "No container runtime found. Install Apple Container, Docker, or Podman.")
 		return 1
 	}
 	// Identifiers come from the record only when sweeping exactly the

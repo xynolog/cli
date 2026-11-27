@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	gotoken "go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -470,45 +471,33 @@ func TestControlProgressKindsAreTheUIs(t *testing.T) {
 	}
 }
 
-// Every code of codes.json's control group is one the launcher fails with:
-// its constant is named outside the generated files.
+// Every code of errors/codes.json's control group is one the launcher fails with:
+// the launcher names as many of api's ControlErrorCode constants as the group
+// has codes. The compiler holds each name to a constant, and api writes one
+// per code.
 func TestEveryControlCodeIsUsed(t *testing.T) {
-	fset := gotoken.NewFileSet()
-	gen, err := parser.ParseFile(fset, "control_schemas_gen.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	constants := map[string]string{}
-	for _, d := range gen.Decls {
-		decl, ok := d.(*ast.GenDecl)
-		if !ok || decl.Tok != gotoken.CONST {
-			continue
-		}
-		for _, spec := range decl.Specs {
-			v := spec.(*ast.ValueSpec)
-			if lit, ok := v.Values[0].(*ast.BasicLit); ok && lit.Kind == gotoken.STRING {
-				if code, _ := strconv.Unquote(lit.Value); slices.Contains(controlCodes, code) {
-					constants[v.Names[0].Name] = code
-				}
-			}
-		}
-	}
-	if len(constants) != len(controlCodes) {
-		t.Fatalf("control_schemas_gen.go names %d of the %d control codes as constants", len(constants), len(controlCodes))
-	}
 	named := map[string]bool{}
 	for _, f := range packageFiles(t) {
 		ast.Inspect(f, func(n ast.Node) bool {
-			if id, ok := n.(*ast.Ident); ok {
-				named[id.Name] = true
+			if sel, ok := n.(*ast.SelectorExpr); ok {
+				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "api" &&
+					strings.HasPrefix(sel.Sel.Name, "ControlErrorCode") && sel.Sel.Name != "ControlErrorCode" {
+					named[sel.Sel.Name] = true
+				}
 			}
 			return true
 		})
 	}
-	for constant, code := range constants {
-		if !named[constant] {
-			t.Errorf("%s is a control code the launcher never fails with: nothing names %s", code, constant)
-		}
+	text, err := os.ReadFile(filepath.Join("..", "..", "protocol", "specs", "src", "errors", "codes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var codes api.ErrorsCodes
+	if err := json.Unmarshal(text, &codes); err != nil {
+		t.Fatal(err)
+	}
+	if len(named) != len(codes.Control.Codes) {
+		t.Errorf("the launcher fails with %d of the control group's %d codes: %v", len(named), len(codes.Control.Codes), slices.Sorted(maps.Keys(named)))
 	}
 }
 
@@ -526,6 +515,32 @@ func TestEveryControlMethodHasAHandler(t *testing.T) {
 	if !slices.Equal(methods, handled) {
 		t.Errorf("methods.json's methods are %v; the handlers are %v", methods, handled)
 	}
+}
+
+// isControlTable: whether name is one of control/'s tables, which Protocol's
+// layout names in kebab case (specs/README.md, "Layout").
+func isControlTable(name string) bool {
+	return name[0] >= 'a' && name[0] <= 'z'
+}
+
+// isControlTableSchema: whether name is the schema of one of the tables among
+// files, which the layout names Control and the table's name in Pascal case.
+func isControlTableSchema(name string, files []string) bool {
+	for _, file := range files {
+		if table := filepath.Base(file); isControlTable(table) && name == "Control"+pascal(strings.TrimSuffix(table, ".json"))+".json" {
+			return true
+		}
+	}
+	return false
+}
+
+// pascal: a kebab-case name in Pascal case.
+func pascal(kebab string) string {
+	var b strings.Builder
+	for _, part := range strings.Split(kebab, "-") {
+		b.WriteString(strings.ToUpper(part[:1]) + part[1:])
+	}
+	return b.String()
 }
 
 // applyingKeywords: the JSON Schema keywords that never refuse a value
@@ -621,9 +636,7 @@ func TestControlFaultKeywordsAreTheSchemas(t *testing.T) {
 	used := map[string]bool{}
 	for _, name := range names {
 		// The directory's tables, and the schema Protocol states each by.
-		switch filepath.Base(name) {
-		case "cli.json", "methods.json", "request-cases.json", "rpc-codes.json",
-			"ControlCli.json", "ControlMethods.json", "ControlRequestCases.json", "ControlRpcCodes.json":
+		if base := filepath.Base(name); isControlTable(base) || isControlTableSchema(base, names) {
 			continue
 		}
 		var schema map[string]any

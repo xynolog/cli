@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 var logsUsage = fmt.Sprintf(`Usage: xynolog logs [--service <name>] [--root <path>] [--runtime container|docker|podman] [--repo <owner/name>]
@@ -132,7 +134,7 @@ func (src logSource) command(service string) *exec.Cmd {
 func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, bool) {
 	if service != "" {
 		if !knownRole(service) {
-			u.Refuse(controlCodeInvalidService, "Unknown --service '%s' (expected: %s)", service, roleList)
+			u.Refuse(api.ControlErrorCodeInvalidService, "Unknown --service '%s' (expected: %s)", service, roleList)
 			return logSource{}, false
 		}
 	}
@@ -162,7 +164,7 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 		if did == "" {
 			remote, ok := fetchRemoteDid(u, c.Codespace.Name)
 			if !ok {
-				u.Refuse(controlCodeUnreachable, "%s's knowledge base could not be identified, so its containers cannot be named.", c.Codespace.Repo)
+				u.Refuse(api.ControlErrorCodeUnreachable, "%s's knowledge base could not be identified, so its containers cannot be named.", c.Codespace.Repo)
 				return false
 			}
 			did = remote
@@ -176,7 +178,7 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 			return logSource{}, false
 		}
 		if !onPath("gh") {
-			u.RefusePlain(controlCodeDependencyUnavailable, "'gh' is not on PATH.")
+			u.RefusePlain(api.ControlErrorCodeDependencyUnavailable, "'gh' is not on PATH.")
 			return logSource{}, false
 		}
 		if !codespace(target) {
@@ -184,7 +186,7 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 		}
 	} else if runtime != "" {
 		if !onPath(runtime) {
-			u.RefusePlain(controlCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
+			u.RefusePlain(api.ControlErrorCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
 			return logSource{}, false
 		}
 		rt = runtime
@@ -197,7 +199,7 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 		// by wire-level container name (the codespace's launcher names them
 		// exactly as this one does).
 		if !onPath("gh") {
-			u.RefusePlain(controlCodeDependencyUnavailable, "A codespace stack is forwarded but 'gh' is not on PATH.")
+			u.RefusePlain(api.ControlErrorCodeDependencyUnavailable, "A codespace stack is forwarded but 'gh' is not on PATH.")
 			return logSource{}, false
 		}
 		if !codespace(fwd[0]) {
@@ -212,7 +214,7 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 		rt = stackRuntime(key)
 	} else if len(cs) == 1 {
 		if !onPath("gh") {
-			u.RefusePlain(controlCodeDependencyUnavailable, "A codespace stack is recorded but 'gh' is not on PATH.")
+			u.RefusePlain(api.ControlErrorCodeDependencyUnavailable, "A codespace stack is recorded but 'gh' is not on PATH.")
 			return logSource{}, false
 		}
 		if !codespace(cs[0]) {
@@ -220,14 +222,14 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 		}
 		u.Log("Using recorded codespace stack %s", u.Dim("("+csName+" per "+statePath()+")"))
 	} else if len(cs) > 1 {
-		u.RefuseChoosing(controlCodeTargetRequired, stackChoices(nil, cs), "Multiple codespace stacks are recorded — say which:  xynolog logs --repo <owner/name>")
+		u.RefuseChoosing(api.ControlErrorCodeTargetRequired, stackChoices(nil, cs), "Multiple codespace stacks are recorded — say which:  xynolog logs --repo <owner/name>")
 		for _, c := range cs {
 			fmt.Fprintf(os.Stderr, "    recorded: %s\n", c.Codespace.Repo)
 		}
 		return logSource{}, false
 	}
 	if rt == "" && csName == "" {
-		u.RefusePlain(controlCodeStackNotRunning, "No running Xynolog stack found in any runtime (container/docker/podman).")
+		u.RefusePlain(api.ControlErrorCodeStackNotRunning, "No running Xynolog stack found in any runtime (container/docker/podman).")
 		fmt.Fprintln(os.Stderr, "Start one with xynolog start, or pass --runtime explicitly.")
 		return logSource{}, false
 	}
@@ -239,13 +241,13 @@ func logSources(u *UI, runtime, service, repoFlag, rootFlag string) (logSource, 
 			if e, ok := st.Services[svc]; ok {
 				switch e.Provided {
 				case providedHost:
-					u.Refuse(controlCodeInvalidService, "%s is provided by a host process — no container logs (check the host service's own logs).", svc)
+					u.Refuse(api.ControlErrorCodeInvalidService, "%s is provided by a host process — no container logs (check the host service's own logs).", svc)
 					return "", false
 				case providedExternal:
-					u.Refuse(controlCodeInvalidService, "%s is externally provided (%s) — no local container logs.", svc, e.Endpoint)
+					u.Refuse(api.ControlErrorCodeInvalidService, "%s is externally provided (%s) — no local container logs.", svc, e.Endpoint)
 					return "", false
 				case providedNone:
-					u.Refuse(controlCodeInvalidService, "%s is not referenced by the running stack's config — nothing to follow.", svc)
+					u.Refuse(api.ControlErrorCodeInvalidService, "%s is not referenced by the running stack's config — nothing to follow.", svc)
 					return "", false
 				case providedShared:
 					// The shared container the stack's record names, by
@@ -352,7 +354,7 @@ func followLogs(ctx context.Context, src logSource, emit func(service, stream, l
 // and none was named.
 func askedLocalStack(u *UI, verb string, ss *StackSet, root string, repo bool) (st *StackState, key string, ok bool) {
 	if repo && root != "" {
-		u.Refuse(controlCodeInvalidRequest, "--repo and --root are contradictory: one names a codespace stack, the other a local one.")
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "--repo and --root are contradictory: one names a codespace stack, the other a local one.")
 		return nil, "", false
 	}
 	if repo {
@@ -367,7 +369,7 @@ func askedLocalStack(u *UI, verb string, ss *StackSet, root string, repo bool) (
 		}
 		asked = kbRoot{dir: dir, ident: ident}
 	} else if kb, err := cwdKBRoot(); err != nil {
-		u.Refuse(controlCodeRootNotFound, "%v", err)
+		u.Refuse(api.ControlErrorCodeRootNotFound, "%v", err)
 		return nil, "", false
 	} else {
 		asked = kb
@@ -384,7 +386,7 @@ func askedLocalStack(u *UI, verb string, ss *StackSet, root string, repo bool) (
 	case 1:
 		return locals[0], rootKey(locals[0].KBDid, locals[0].KBRoot), true
 	default:
-		u.RefuseChoosing(controlCodeTargetRequired, stackChoices(locals, codespaceStacks(ss)), "Multiple stacks are recorded — say which:")
+		u.RefuseChoosing(api.ControlErrorCodeTargetRequired, stackChoices(locals, codespaceStacks(ss)), "Multiple stacks are recorded — say which:")
 		printStackMenu(verb, "", locals, codespaceStacks(ss))
 		return nil, "", false
 	}

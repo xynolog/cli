@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // codespace.go — the `codespace` PLATFORM: a substrate the launcher must provision before
@@ -1609,7 +1611,7 @@ func requireGh(u *UI, what string) bool {
 	if onPath("gh") {
 		return true
 	}
-	u.Refuse(controlCodeDependencyUnavailable, "%s needs the GitHub CLI, and 'gh' is not on PATH.", what)
+	u.Refuse(api.ControlErrorCodeDependencyUnavailable, "%s needs the GitHub CLI, and 'gh' is not on PATH.", what)
 	fmt.Fprintln(os.Stderr, "  Install it: https://cli.github.com  (then: gh auth login)")
 	return false
 }

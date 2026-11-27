@@ -384,7 +384,7 @@ func VerbSession(u *UI, verb, repo, root string, wantLocal bool, channels ...bus
 func StackBase(u *UI, target *StackState, verb string) (string, bool) {
 	switch {
 	case target == nil:
-		u.Refuse(controlCodeStackNotRunning, "%s needs a running stack, and none is recorded.", verb)
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "%s needs a running stack, and none is recorded.", verb)
 		fmt.Fprintln(os.Stderr, "  Start one first:  xynolog start")
 		return "", false
 	case target.Codespace != nil:
@@ -469,7 +469,7 @@ func signOut(ctx context.Context, u *UI, target *StackState) (api.AuthLogoutResu
 	}
 	e, have, err := store.SignIn(key)
 	if err != nil {
-		u.Refuse(controlCodeUnreadableState, "The sign-in store cannot be read: %v", err)
+		u.Refuse(api.ControlErrorCodeUnreadableState, "The sign-in store cannot be read: %v", err)
 		return api.AuthLogoutResult{}, false
 	}
 	if !have {
@@ -481,7 +481,7 @@ func signOut(ctx context.Context, u *UI, target *StackState) (api.AuthLogoutResu
 	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming()}
 	revoked, err := xynolog.SignOut(ctx, issuer, store.Entry(key))
 	if err != nil {
-		u.Refuse(controlCodeFailed, "Could not remove the stored session: %v", err)
+		u.Refuse(api.ControlErrorCodeFailed, "Could not remove the stored session: %v", err)
 		return api.AuthLogoutResult{}, false
 	}
 	ended.WasSignedIn, ended.Revoked = true, revoked

@@ -49,7 +49,7 @@ func (req *controlRequest) operate() (result any, failure *controlFailure) {
 	defer func() {
 		if p := recover(); p != nil {
 			fmt.Fprintf(req.server.diag, "✗ control: %s panicked: %v\n", req.method.name, p)
-			result, failure = nil, &controlFailure{code: controlCodeFailed, rpcCode: api.ControlRpcCodeInternalError,
+			result, failure = nil, &controlFailure{code: api.ControlErrorCodeFailed, rpcCode: api.ControlRpcCodeInternalError,
 				message: fmt.Sprintf("the launcher failed: %v", p)}
 		}
 	}()
@@ -63,7 +63,7 @@ func (req *controlRequest) operate() (result any, failure *controlFailure) {
 // decode reads req's params, which checkParams held to their schema, into p.
 func (req *controlRequest) decode(p any) *controlFailure {
 	if err := json.Unmarshal(req.params, p); err != nil {
-		return &controlFailure{code: controlCodeInvalidParams, rpcCode: api.ControlRpcCodeInvalidParams,
+		return &controlFailure{code: api.ControlErrorCodeInvalidParams, rpcCode: api.ControlRpcCodeInvalidParams,
 			message: fmt.Sprintf("%s's params: %v", req.method.name, err)}
 	}
 	return nil
@@ -123,7 +123,7 @@ func controlAbout(req *controlRequest, u *UI) (any, *controlFailure) {
 func controlRootsList(req *controlRequest, u *UI) (any, *controlFailure) {
 	ss := LoadStackSet()
 	if ss.refuseUnreadable(u) {
-		return nil, failed(u, controlCodeUnreadableState)
+		return nil, failed(u, api.ControlErrorCodeUnreadableState)
 	}
 	known, warning := knownRoots(localStacks(ss))
 	out := api.RootsListResult{Roots: []api.Root{}}
@@ -177,7 +177,7 @@ func controlRootsForget(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	f, ok := forgetRoot(u, p.Root)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.RootsForgetResult{Path: f.path, DirectoryMissing: f.directoryMissing, PersistentState: stated(f.persistentState)}, nil
 }
@@ -188,16 +188,16 @@ func controlStatusSnapshot(req *controlRequest, u *UI) (any, *controlFailure) {
 		return nil, f
 	}
 	if refuseCodespaceRuntime(u, p.Target, p.Runtime) {
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	ss := LoadStackSet()
 	if ss.refuseUnreadable(u) {
-		return nil, failed(u, controlCodeUnreadableState)
+		return nil, failed(u, api.ControlErrorCodeUnreadableState)
 	}
 	if p.Target != nil && p.Target.Kind == "codespace" {
 		st, ok := repoCodespaceStack(u, ss, *p.Target.Repo)
 		if !ok {
-			return nil, failed(u, controlCodeFailed)
+			return nil, failed(u, api.ControlErrorCodeFailed)
 		}
 		return statusSnapshot(ss, nil, kbRoot{}, []*StackState{st}), nil
 	}
@@ -207,11 +207,11 @@ func controlStatusSnapshot(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	chosen, ok := reportedStacks(u, ss, root)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	views, ok := statusViews(u, chosen, string(given(p.Runtime)))
 	if !ok {
-		return nil, failed(u, controlCodeRuntimeUnavailable)
+		return nil, failed(u, api.ControlErrorCodeRuntimeUnavailable)
 	}
 	var codespaces []*StackState
 	if chosen.every && p.Target == nil {
@@ -224,7 +224,7 @@ func controlStatusSnapshot(req *controlRequest, u *UI) (any, *controlFailure) {
 // codespace's own launcher chooses its runtime.
 func refuseCodespaceRuntime(u *UI, target *api.Target, runtime *api.Runtime) bool {
 	if target != nil && target.Kind == "codespace" && runtime != nil {
-		u.Refuse(controlCodeInvalidRequest, "runtime names a local stack's container runtime, and the target is a codespace's stack, whose own launcher chooses its runtime.")
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "runtime names a local stack's container runtime, and the target is a codespace's stack, whose own launcher chooses its runtime.")
 		return true
 	}
 	return false
@@ -234,12 +234,12 @@ func refuseCodespaceRuntime(u *UI, target *api.Target, runtime *api.Runtime) boo
 // of, which xynolog start refuses in the same words.
 func refuseUnknownSelection(u *UI, service *string, group *api.ServiceGroup) bool {
 	if service != nil && !knownRole(*service) {
-		u.Refuse(controlCodeInvalidService, "Unknown --service '%s' (expected: %s)", *service, roleList)
+		u.Refuse(api.ControlErrorCodeInvalidService, "Unknown --service '%s' (expected: %s)", *service, roleList)
 		return true
 	}
 	if group != nil {
 		if _, known := groupNamed(string(*group)); !known {
-			u.Refuse(controlCodeInvalidService, "Unknown --group '%s' (expected: %s)", *group, groupList)
+			u.Refuse(api.ControlErrorCodeInvalidService, "Unknown --group '%s' (expected: %s)", *group, groupList)
 			return true
 		}
 	}
@@ -336,17 +336,17 @@ func controlStackStart(req *controlRequest, u *UI) (any, *controlFailure) {
 		return nil, f
 	}
 	if refuseCodespaceRuntime(u, p.Target, p.Runtime) {
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	if refuseUnknownSelection(u, p.Service, p.Group) {
-		return nil, failed(u, controlCodeInvalidService)
+		return nil, failed(u, api.ControlErrorCodeInvalidService)
 	}
 	args := startArgs(p)
 	opts, _, _ := parseStart(args)
 	code := Start(u, args)
 	releaseStartLock()
 	if code != 0 {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if opts.dryRun {
 		return api.StackStartResult{DryRun: true}, nil
@@ -410,18 +410,18 @@ func controlStackStop(req *controlRequest, u *UI) (any, *controlFailure) {
 		return nil, f
 	}
 	if refuseCodespaceRuntime(u, p.Target, p.Runtime) {
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	switch {
 	case asked(p.Delete) && !asked(p.DeleteConfirmed):
-		u.Refuse(controlCodeConfirmationRequired, "delete destroys the codespace, state and all: send it with deleteConfirmed once a person has confirmed it.")
-		return nil, failed(u, controlCodeConfirmationRequired)
+		u.Refuse(api.ControlErrorCodeConfirmationRequired, "delete destroys the codespace, state and all: send it with deleteConfirmed once a person has confirmed it.")
+		return nil, failed(u, api.ControlErrorCodeConfirmationRequired)
 	case asked(p.DeleteConfirmed) && !asked(p.Delete):
-		u.Refuse(controlCodeInvalidRequest, "deleteConfirmed confirms a delete, and the request asks for none.")
-		return nil, failed(u, controlCodeInvalidRequest)
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "deleteConfirmed confirms a delete, and the request asks for none.")
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	if Stop(u, stopArgs(p)) != 0 {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if asked(p.DryRun) {
 		return api.StackStopResult{DryRun: true}, nil
@@ -431,7 +431,7 @@ func controlStackStop(req *controlRequest, u *UI) (any, *controlFailure) {
 	for _, st := range localStacks(ss) {
 		v, code := newStackView(u, st, rootKey(st.KBDid, st.KBRoot), "")
 		if code != 0 {
-			return nil, failed(u, controlCodeRuntimeUnavailable)
+			return nil, failed(u, api.ControlErrorCodeRuntimeUnavailable)
 		}
 		views = append(views, v)
 	}
@@ -460,16 +460,16 @@ func controlAuthLogin(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	target, ok := verbTarget(u, "login", p.Target, p.Runtime)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	base, ok := StackBase(u, target, "login")
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	key := StackKey(target)
 	if held, have := LoadTokens()[key]; have && storedTokenState(base, held.Token) == api.SessionStateValid {
-		u.Refuse(controlCodeAlreadySignedIn, "Already signed in to %s: the gateway accepts the stored session.", key)
-		return nil, failed(u, controlCodeAlreadySignedIn)
+		u.Refuse(api.ControlErrorCodeAlreadySignedIn, "Already signed in to %s: the gateway accepts the stored session.", key)
+		return nil, failed(u, api.ControlErrorCodeAlreadySignedIn)
 	}
 	signedIn, ok := signIn(req.ctx, u, target, func(code api.DeviceCode) {
 		action := api.UserAction{RequestId: req.id, VerificationUri: code.VerificationUri,
@@ -481,7 +481,7 @@ func controlAuthLogin(req *controlRequest, u *UI) (any, *controlFailure) {
 		req.endTurn()
 	})
 	if !ok {
-		return nil, failed(u, controlCodeSignInFailed)
+		return nil, failed(u, api.ControlErrorCodeSignInFailed)
 	}
 	return signedIn, nil
 }
@@ -493,11 +493,11 @@ func controlAuthLogout(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	target, ok := verbTarget(u, "logout", p.Target, p.Runtime)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	ended, ok := signOut(req.ctx, u, target)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return ended, nil
 }
@@ -518,27 +518,27 @@ func controlIdentityUseraddForTarget(u *UI, p api.IdentityUseraddParams, target 
 	password := given(p.Password)
 	if !p.GeneratePassword {
 		if !useraddValidate(u, o) {
-			return nil, failed(u, controlCodeInvalidParams)
+			return nil, failed(u, api.ControlErrorCodeInvalidParams)
 		}
 		if password == "" {
-			u.Refuse(controlCodeInvalidParams, "Supply a password or ask the launcher to generate one.")
-			return nil, failed(u, controlCodeInvalidParams)
+			u.Refuse(api.ControlErrorCodeInvalidParams, "Supply a password or ask the launcher to generate one.")
+			return nil, failed(u, api.ControlErrorCodeInvalidParams)
 		}
 		// Error messages and progress must never repeat a supplied password.
 		noteSecret(password)
 	} else if !useraddValidate(u, o) {
-		return nil, failed(u, controlCodeInvalidParams)
+		return nil, failed(u, api.ControlErrorCodeInvalidParams)
 	}
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if target == nil || target.KBRoot == "" || target.Codespace != nil {
-		u.Refuse(controlCodeStackNotRunning, "No local stack for the selected knowledge base is running, so there is no realm to administer.")
-		return nil, failed(u, controlCodeStackNotRunning)
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "No local stack for the selected knowledge base is running, so there is no realm to administer.")
+		return nil, failed(u, api.ControlErrorCodeStackNotRunning)
 	}
 	result, code := run(u, o, password, target.KBRoot, target.KBDid)
 	if code != 0 {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.IdentityUseraddResult{
 		Email: result.email, Identity: result.identity, Created: result.created,
@@ -560,20 +560,20 @@ type controlRealmUserLister func(string, string, string) ([]realmUser, error)
 
 func controlIdentityUsersListForTarget(u *UI, target *StackState, ok bool, resolve controlRealmAdminResolver, list controlRealmUserLister) (any, *controlFailure) {
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if target == nil || target.KBRoot == "" || target.Codespace != nil {
-		u.Refuse(controlCodeStackNotRunning, "No local stack for the selected knowledge base is recorded, so there is no realm to list.")
-		return nil, failed(u, controlCodeStackNotRunning)
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "No local stack for the selected knowledge base is recorded, so there is no realm to list.")
+		return nil, failed(u, api.ControlErrorCodeStackNotRunning)
 	}
 	admin, ok := resolve(u, target.KBRoot, target.KBDid)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	accounts, err := list(admin.base, admin.realm, admin.token)
 	if err != nil {
 		u.Fail("%v", err)
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	users := make([]api.IdentityUser, 0, len(accounts))
 	for _, account := range accounts {
@@ -590,7 +590,7 @@ func controlLogsFollow(req *controlRequest, u *UI) (any, *controlFailure) {
 		return nil, f
 	}
 	if refuseCodespaceRuntime(u, p.Target, p.Runtime) {
-		return nil, failed(u, controlCodeInvalidRequest)
+		return nil, failed(u, api.ControlErrorCodeInvalidRequest)
 	}
 	repo, root := "", ""
 	if p.Target != nil {
@@ -598,7 +598,7 @@ func controlLogsFollow(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	src, ok := logSources(u, string(given(p.Runtime)), given(p.Service), repo, root)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	// A follow runs until its sources end or it is cancelled: the next
 	// request takes its turn meanwhile.
@@ -617,7 +617,7 @@ func controlSettingsList(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	kb, rootErr, ok := settingsRoot(u, given(p.Root))
 	if !ok {
-		return nil, failed(u, controlCodeRootNotFound)
+		return nil, failed(u, api.ControlErrorCodeRootNotFound)
 	}
 	out := api.SettingsListResult{Settings: []api.Setting{}}
 	if rootErr != nil {
@@ -677,7 +677,7 @@ func controlSettingsGet(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	s, kb, rootErr, ok := askedSetting(u, p.Name, p.Default, p.Root)
 	if !ok || refuseUnrooted(u, s, rootErr) {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return controlSetting(u, s, kb), nil
 }
@@ -689,10 +689,10 @@ func controlSettingsSet(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	s, kb, rootErr, ok := askedSetting(u, p.Name, p.Default, p.Root)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if !changeSetting(u, s, kb, rootErr, p.Value, false) {
-		return nil, failed(u, controlCodeInvalidValue)
+		return nil, failed(u, api.ControlErrorCodeInvalidValue)
 	}
 	return controlSetting(u, s, kb), nil
 }
@@ -704,10 +704,10 @@ func controlSettingsUnset(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	s, kb, rootErr, ok := askedSetting(u, p.Name, p.Default, p.Root)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	if !changeSetting(u, s, kb, rootErr, "", true) {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return controlSetting(u, s, kb), nil
 }
@@ -719,7 +719,7 @@ func controlSettingsPath(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	path, ok := machineDocuments[string(p.Document)](u)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.SettingsPathResult{Path: path}, nil
 }
@@ -731,11 +731,11 @@ func controlServiceHost(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	rt, ok := SelectRuntime(u, string(given(p.Runtime)))
 	if !ok {
-		return nil, failed(u, controlCodeRuntimeUnavailable)
+		return nil, failed(u, api.ControlErrorCodeRuntimeUnavailable)
 	}
 	addr, ok := hostAddress(u, rt)
 	if !ok {
-		return nil, failed(u, controlCodeRuntimeUnavailable)
+		return nil, failed(u, api.ControlErrorCodeRuntimeUnavailable)
 	}
 	return api.ServiceHostResult{Runtime: api.Runtime(rt), Address: addr}, nil
 }
@@ -768,7 +768,7 @@ func controlServiceRun(req *controlRequest, u *UI) (any, *controlFailure) {
 		},
 	})
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.ServiceRunResult{Instance: p.Instance, ExitCode: ended.exitCode, RanMs: ended.ranMs}, nil
 }
@@ -780,7 +780,7 @@ func controlServiceSignal(req *controlRequest, u *UI) (any, *controlFailure) {
 	}
 	delivered, ok := signalService(u, p.Target.Root, string(given(p.Runtime)), p.Instance, p.Signal)
 	if !ok {
-		return nil, failed(u, controlCodeFailed)
+		return nil, failed(u, api.ControlErrorCodeFailed)
 	}
 	return api.ServiceSignalResult{Delivered: delivered}, nil
 }

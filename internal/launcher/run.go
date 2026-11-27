@@ -173,7 +173,7 @@ func runImage(u *UI, kb kbRoot, service string) (image, memory string, ok bool) 
 	}
 	images, memories := serviceImages(base.Spec, index.Spec)
 	if image = images[service]; image == "" {
-		u.Refuse(controlCodeInvalidService, "%s's stack documents name no image for %s.", kb.dir, service)
+		u.Refuse(api.ControlErrorCodeInvalidService, "%s's stack documents name no image for %s.", kb.dir, service)
 		return "", "", false
 	}
 	return image, memories[service], true
@@ -275,16 +275,16 @@ func runEnvironment(u *UI, spec runSpec, image imageRun) (string, bool) {
 		value := spec.environment[name]
 		switch {
 		case name == "" || strings.ContainsAny(name, "=\n\r#"):
-			u.Refuse(controlCodeInvalidRequest, "environment names %q, which is no variable's name.", name)
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "environment names %q, which is no variable's name.", name)
 			return "", false
 		case strings.ContainsAny(value, "\n\r"):
-			u.Refuse(controlCodeInvalidRequest, "environment's %s holds a line break, which a variable of the runtime's env-file cannot.", name)
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "environment's %s holds a line break, which a variable of the runtime's env-file cannot.", name)
 			return "", false
 		case name == "XYNOLOG_SUPERVISE":
-			u.Refuse(controlCodeInvalidRequest, "environment names XYNOLOG_SUPERVISE, and a run is unsupervised (R1): start runs a service supervised.")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "environment names XYNOLOG_SUPERVISE, and a run is unsupervised (R1): start runs a service supervised.")
 			return "", false
 		case name == "PATH" && len(spec.pathFirst) > 0:
-			u.Refuse(controlCodeInvalidRequest, "environment names PATH and pathFirst puts directories before the image's: state one.")
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "environment names PATH and pathFirst puts directories before the image's: state one.")
 			return "", false
 		}
 		fmt.Fprintf(&b, "%s=%s\n", name, value)
@@ -385,7 +385,7 @@ func runService(ctx context.Context, u *UI, spec runSpec, sink runSink) (runEnde
 	}
 	runsHere.Unlock()
 	if here {
-		u.Refuse(controlCodeInstanceInUse, "%s already runs here: its run is in flight.", spec.instance)
+		u.Refuse(api.ControlErrorCodeInstanceInUse, "%s already runs here: its run is in flight.", spec.instance)
 		return runEnded{}, false
 	}
 	defer func() {
@@ -394,7 +394,7 @@ func runService(ctx context.Context, u *UI, spec runSpec, sink runSink) (runEnde
 		runsHere.Unlock()
 	}()
 	if state, _ := containerState([]string{rt}, container); state != "" {
-		u.Refuse(controlCodeInstanceInUse, "%s's container %s is %s under %s: another run has it, or one a launcher left (xynolog stop --root %s removes it).", spec.instance, container, state, rt, kb.dir)
+		u.Refuse(api.ControlErrorCodeInstanceInUse, "%s's container %s is %s under %s: another run has it, or one a launcher left (xynolog stop --root %s removes it).", spec.instance, container, state, rt, kb.dir)
 		return runEnded{}, false
 	}
 
@@ -414,7 +414,7 @@ func runService(ctx context.Context, u *UI, spec runSpec, sink runSink) (runEnde
 	documentPath := ""
 	if spec.document != nil {
 		if documentPath, ok = run.documentPath(); !ok {
-			u.Refuse(controlCodeInvalidRequest, "%s's arguments (%s) name no --config, so a document has no path to be written at.", image, strings.Join(run.cmd, " "))
+			u.Refuse(api.ControlErrorCodeInvalidRequest, "%s's arguments (%s) name no --config, so a document has no path to be written at.", image, strings.Join(run.cmd, " "))
 			return runEnded{}, false
 		}
 	}
@@ -666,7 +666,7 @@ func signalService(u *UI, root, named, instance string, signal api.ServiceSignal
 		}
 	}
 	if state, _ := containerState([]string{rt}, container); state == "" && !here {
-		u.Refuse(controlCodeInstanceNotFound, "No run of %s is in flight under %s for %s.", instance, rt, kb.dir)
+		u.Refuse(api.ControlErrorCodeInstanceNotFound, "No run of %s is in flight under %s for %s.", instance, rt, kb.dir)
 		return false, false
 	}
 	delivered, err := signalContainer(rt, container, signal)

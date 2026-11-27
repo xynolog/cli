@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xynolog/cli/internal/launcher/stack"
+	"github.com/xynolog/sdk/go/api"
 )
 
 const imageRegistry = "ghcr.io/xynolog"
@@ -185,7 +186,7 @@ func Start(u *UI, args []string) int {
 		return 0
 	}
 	if errMsg != "" {
-		u.Refuse(controlCodeInvalidRequest, "%s", errMsg)
+		u.Refuse(api.ControlErrorCodeInvalidRequest, "%s", errMsg)
 		return 1
 	}
 	// The record decides what a bare start even MEANS (local or a recorded
@@ -235,19 +236,19 @@ func Start(u *UI, args []string) int {
 		// apply.
 		_, _, _, rootErr := resolveKBRoot()
 		if projectFileRefused(rootErr) {
-			u.Refuse(controlCodeRootNotFound, "%v", rootErr)
+			u.Refuse(api.ControlErrorCodeRootNotFound, "%v", rootErr)
 			return 1
 		}
 		if cs := codespaceStacks(ss); opts.starts == nil && rootErr != nil && len(localStacks(ss)) == 0 && len(cs) > 0 {
 			if len(cs) > 1 {
-				u.RefuseChoosing(controlCodeTargetRequired, stackChoices(nil, cs), "%d codespace stacks are recorded — say which:", len(cs))
+				u.RefuseChoosing(api.ControlErrorCodeTargetRequired, stackChoices(nil, cs), "%d codespace stacks are recorded — say which:", len(cs))
 				for _, c := range cs {
 					fmt.Fprintf(os.Stderr, "    xynolog start --runtime codespace --repo %s\n", c.Codespace.Repo)
 				}
 				return 1
 			}
 			if !onPath("gh") {
-				u.Refuse(controlCodeDependencyUnavailable, "A codespace stack is recorded (per %s) but 'gh' is not on PATH.", statePath())
+				u.Refuse(api.ControlErrorCodeDependencyUnavailable, "A codespace stack is recorded (per %s) but 'gh' is not on PATH.", statePath())
 				fmt.Fprintln(os.Stderr, "  Install the GitHub CLI, or forget the stack:  xynolog stop --delete")
 				return 1
 			}

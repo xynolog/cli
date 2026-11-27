@@ -630,7 +630,7 @@ func forgetRoot(u *UI, arg string) (forgotten, bool) {
 	}
 	switch {
 	case len(matches) == 0:
-		u.Refuse(controlCodeRootNotRegistered, "%q is not in the registry.", arg)
+		u.Refuse(api.ControlErrorCodeRootNotRegistered, "%q is not in the registry.", arg)
 		fmt.Fprintln(os.Stderr, "  Registered roots: xynolog roots")
 		return forgotten{}, false
 	case len(matches) > 1:
@@ -639,7 +639,7 @@ func forgetRoot(u *UI, arg string) (forgotten, bool) {
 			path := reg.Roots[i].Path
 			choices = append(choices, api.Target{Kind: "local", Root: &path})
 		}
-		u.RefuseChoosing(controlCodeTargetAmbiguous, choices, "%q names %d registered roots — forget one by its full path:", arg, len(matches))
+		u.RefuseChoosing(api.ControlErrorCodeTargetAmbiguous, choices, "%q names %d registered roots — forget one by its full path:", arg, len(matches))
 		for _, i := range matches {
 			fmt.Fprintln(os.Stderr, "    "+reg.Roots[i].Path)
 		}
@@ -651,7 +651,7 @@ func forgetRoot(u *UI, arg string) (forgotten, bool) {
 		return forgotten{}, false
 	}
 	if st := localStack(ss, rootKey(e.Did, e.Path)); st != nil && st.KBRoot == e.Path {
-		u.Refuse(controlCodeStackRunning, "%s is a running stack's root (per %s).", e.Path, statePath())
+		u.Refuse(api.ControlErrorCodeStackRunning, "%s is a running stack's root (per %s).", e.Path, statePath())
 		fmt.Fprintln(os.Stderr, "  Stop it first: xynolog stop --root "+e.Path)
 		return forgotten{}, false
 	}

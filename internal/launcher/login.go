@@ -100,7 +100,7 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming()}
 	endpoints, err := issuer.Discover(ctx, base)
 	if err != nil {
-		u.Refuse(controlCodeUnreachable, "%v", err)
+		u.Refuse(api.ControlErrorCodeUnreachable, "%v", err)
 		fmt.Fprintln(os.Stderr, "  Is the stack up?  xynolog status")
 		return api.AuthLoginResult{}, false
 	}
@@ -108,7 +108,7 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 
 	tokens, err := issuer.SignInWithDeviceGrant(ctx, endpoints, shown)
 	if err != nil {
-		u.Refuse(controlCodeSignInFailed, "Sign-in failed: %v", err)
+		u.Refuse(api.ControlErrorCodeSignInFailed, "Sign-in failed: %v", err)
 		return api.AuthLoginResult{}, false
 	}
 	noteSecret(tokens.Access)
@@ -125,11 +125,11 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	me, err := asker.GetCurrentUser(ctx)
 	asker.Close()
 	if unauthorized(err) {
-		u.Refuse(controlCodeSignInFailed, "The issuer signed you in, but the gateway rejected the token — the realm's audience mapper and this knowledge base's resource identifier disagree.")
+		u.Refuse(api.ControlErrorCodeSignInFailed, "The issuer signed you in, but the gateway rejected the token — the realm's audience mapper and this knowledge base's resource identifier disagree.")
 		return api.AuthLoginResult{}, false
 	}
 	if err != nil {
-		u.Refuse(controlCodeUnreachable, "Gateway unreachable at %s: %v", base, err)
+		u.Refuse(api.ControlErrorCodeUnreachable, "Gateway unreachable at %s: %v", base, err)
 		return api.AuthLoginResult{}, false
 	}
 
@@ -140,7 +140,7 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 		TokenEndpoint:      endpoints.Token,
 		RevocationEndpoint: endpoints.Revocation,
 	}); err != nil {
-		u.Refuse(controlCodeSignInFailed, "Token could not be stored (%v) — NOT logged in.", err)
+		u.Refuse(api.ControlErrorCodeSignInFailed, "Token could not be stored (%v) — NOT logged in.", err)
 		return api.AuthLoginResult{}, false
 	}
 	who := me.Did.String()
@@ -175,7 +175,7 @@ func GatewayBase(st *StackState) (string, error) {
 func localBase(u *UI, st *StackState, verb string) (string, bool) {
 	base, err := GatewayBase(st)
 	if err != nil {
-		u.Refuse(controlCodeStackNotRunning, "%v, so %s cannot reach its KB.", err, verb)
+		u.Refuse(api.ControlErrorCodeStackNotRunning, "%v, so %s cannot reach its KB.", err, verb)
 		fmt.Fprintln(os.Stderr, "  Start it:  xynolog start")
 		return "", false
 	}

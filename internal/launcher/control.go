@@ -460,7 +460,7 @@ func (req *controlRequest) endTurn() {
 
 // cancelledFailure: what a cancelled request is answered with.
 func cancelledFailure(req *controlRequest) *controlFailure {
-	f := &controlFailure{code: controlCodeCancelled, message: "cancelled by the client"}
+	f := &controlFailure{code: api.ControlErrorCodeCancelled, message: "cancelled by the client"}
 	if req.method.name == "stack.start" {
 		mayStillRun := true
 		f.mayStillRun = &mayStillRun
@@ -492,7 +492,7 @@ func (s *controlServer) answer(req *controlRequest, result any, failure *control
 	}
 	if err != nil {
 		fmt.Fprintf(s.diag, "✗ control: %s: %v\n", req.method.name, err)
-		s.reply(req.id, nil, (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + err.Error(), rpcCode: api.ControlRpcCodeInternalError}).rpc())
+		s.reply(req.id, nil, (&controlFailure{code: api.ControlErrorCodeFailed, message: "the launcher could not answer: " + err.Error(), rpcCode: api.ControlRpcCodeInternalError}).rpc())
 		return
 	}
 	s.reply(req.id, json.RawMessage(text), nil)
@@ -518,7 +518,7 @@ func (s *controlServer) reply(id json.Marshaler, result json.RawMessage, failure
 			if fault := s.schemas.check(controlErrorDataSchema, data); fault != nil {
 				said := fmt.Sprintf("an error's data does not hold to %s: %s", controlErrorDataSchema, fault.message)
 				fmt.Fprintf(s.diag, "✗ control: %s\n", said)
-				failure = (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + said, rpcCode: api.ControlRpcCodeInternalError}).rpc()
+				failure = (&controlFailure{code: api.ControlErrorCodeFailed, message: "the launcher could not answer: " + said, rpcCode: api.ControlRpcCodeInternalError}).rpc()
 			}
 		}
 		response["error"] = failure

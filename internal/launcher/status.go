@@ -205,7 +205,7 @@ func Status(args []string) int {
 		// issuer (askRemoteKB).
 		st := reported.stacks[0]
 		if holder, busy := startInProgress(rootKey(st.KBDid, st.KBRoot)); busy {
-			u.Refuse(controlCodeStartInProgress, "A xynolog start is running for this KB (%s) — its stack is not ready yet.", holder)
+			u.Refuse(api.ControlErrorCodeStartInProgress, "A xynolog start is running for this KB (%s) — its stack is not ready yet.", holder)
 			return 1
 		}
 	}
@@ -351,7 +351,7 @@ func reportedStacks(u *UI, ss *StackSet, root string) (stackSelection, bool) {
 	}
 	kb, err := cwdKBRoot()
 	if err != nil {
-		u.Refuse(controlCodeRootNotFound, "%v", err)
+		u.Refuse(api.ControlErrorCodeRootNotFound, "%v", err)
 		return stackSelection{}, false
 	}
 	if st := localStack(ss, kb.key()); kb.dir != "" && st != nil {
@@ -406,7 +406,7 @@ func newStackView(u *UI, st *StackState, key, runtime string) (stackView, int) {
 	switch {
 	case runtime != "":
 		if !onPath(runtime) {
-			u.RefusePlain(controlCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
+			u.RefusePlain(api.ControlErrorCodeRuntimeUnavailable, "--runtime %s requested, but '%s' is not on PATH.", runtime, runtime)
 			return stackView{}, 1
 		}
 		runtimes = []string{runtime}
@@ -420,7 +420,7 @@ func newStackView(u *UI, st *StackState, key, runtime string) (stackView, int) {
 		runtimes = installedRuntimes()
 	}
 	if len(runtimes) == 0 {
-		u.Refuse(controlCodeRuntimeUnavailable, "No container runtime found. Install Apple Container, Docker, or Podman.")
+		u.Refuse(api.ControlErrorCodeRuntimeUnavailable, "No container runtime found. Install Apple Container, Docker, or Podman.")
 		return stackView{}, 1
 	}
 	v := stackView{st: st, key: key, runtimes: runtimes}
