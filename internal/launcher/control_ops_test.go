@@ -93,35 +93,35 @@ func controlTestUI() *UI {
 func TestControlOperationsRefuseUnderTheirCodes(t *testing.T) {
 	cases := []struct {
 		name, method, params string
-		rpcCode              int
-		code                 string
+		rpcCode              api.ControlRpcCode
+		code                 api.ControlErrorCode
 	}{
-		{"params that do not decode", "roots.forget", `{"root":5}`, rpcInvalidParams, controlCodeInvalidParams},
-		{"forget an unregistered root", "roots.forget", `{"root":"no-such-root"}`, rpcOperationError, controlCodeRootNotRegistered},
-		{"status of a codespace on a runtime", "status.snapshot", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, rpcOperationError, controlCodeInvalidRequest},
-		{"status of a root that is not one", "status.snapshot", `{"target":{"kind":"local","root":"no-such-root"}}`, rpcOperationError, controlCodeRootNotFound},
-		{"status with no runtime installed", "status.snapshot", `{}`, rpcOperationError, controlCodeRuntimeUnavailable},
-		{"status on a runtime not installed", "status.snapshot", `{"runtime":"docker"}`, rpcOperationError, controlCodeRuntimeUnavailable},
-		{"dry-run start outside a knowledge base", "stack.start", `{"dryRun":true}`, rpcOperationError, controlCodeRootNotFound},
-		{"start a codespace on a runtime", "stack.start", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, rpcOperationError, controlCodeInvalidRequest},
-		{"start an unknown service", "stack.start", `{"service":"no-such-service"}`, rpcOperationError, controlCodeInvalidService},
-		{"start an unknown group", "stack.start", `{"group":"no-such-group"}`, rpcOperationError, controlCodeInvalidService},
-		{"stop a codespace on a runtime", "stack.stop", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, rpcOperationError, controlCodeInvalidRequest},
-		{"delete unconfirmed", "stack.stop", `{"delete":true}`, rpcOperationError, controlCodeConfirmationRequired},
-		{"confirm no delete", "stack.stop", `{"deleteConfirmed":true}`, rpcOperationError, controlCodeInvalidRequest},
-		{"sign in with no stack", "auth.login", `{}`, rpcOperationError, controlCodeStackNotRunning},
-		{"sign in to a root that is not one", "auth.login", `{"target":{"kind":"local","root":"no-such-root"}}`, rpcOperationError, controlCodeRootNotFound},
-		{"sign out of a root that is not one", "auth.logout", `{"target":{"kind":"local","root":"no-such-root"}}`, rpcOperationError, controlCodeRootNotFound},
-		{"useradd routes to the selected root", "identity.useradd", `{"target":{"kind":"local","root":"no-such-root"},"email":"person@example.org","generatePassword":true}`, rpcOperationError, controlCodeRootNotFound},
-		{"users list routes to the selected root", "identity.users.list", `{"target":{"kind":"local","root":"no-such-root"}}`, rpcOperationError, controlCodeRootNotFound},
-		{"follow a root that is not one", "logs.follow", `{"target":{"kind":"local","root":"no-such-root"}}`, rpcOperationError, controlCodeRootNotFound},
-		{"settings of a root that is not one", "settings.list", `{"root":"no-such-root"}`, rpcOperationError, controlCodeRootNotFound},
-		{"follow a codespace on a runtime", "logs.follow", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, rpcOperationError, controlCodeInvalidRequest},
-		{"follow an unknown service", "logs.follow", `{"service":"no-such-service"}`, rpcOperationError, controlCodeInvalidService},
-		{"get an unknown setting", "settings.get", `{"name":"no-such-setting"}`, rpcOperationError, controlCodeUnknownSetting},
-		{"set an unknown setting", "settings.set", `{"name":"no-such-setting","value":"x"}`, rpcOperationError, controlCodeUnknownSetting},
-		{"unset an unknown setting", "settings.unset", `{"name":"no-such-setting"}`, rpcOperationError, controlCodeUnknownSetting},
-		{"set a port that is none", "settings.set", `{"name":"keycloak-port","value":"not-a-port"}`, rpcOperationError, controlCodeInvalidValue},
+		{"params that do not decode", "roots.forget", `{"root":5}`, api.ControlRpcCodeInvalidParams, controlCodeInvalidParams},
+		{"forget an unregistered root", "roots.forget", `{"root":"no-such-root"}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotRegistered},
+		{"status of a codespace on a runtime", "status.snapshot", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidRequest},
+		{"status of a root that is not one", "status.snapshot", `{"target":{"kind":"local","root":"no-such-root"}}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"status with no runtime installed", "status.snapshot", `{}`, api.ControlRpcCodeOperationFailed, controlCodeRuntimeUnavailable},
+		{"status on a runtime not installed", "status.snapshot", `{"runtime":"docker"}`, api.ControlRpcCodeOperationFailed, controlCodeRuntimeUnavailable},
+		{"dry-run start outside a knowledge base", "stack.start", `{"dryRun":true}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"start a codespace on a runtime", "stack.start", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidRequest},
+		{"start an unknown service", "stack.start", `{"service":"no-such-service"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidService},
+		{"start an unknown group", "stack.start", `{"group":"no-such-group"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidService},
+		{"stop a codespace on a runtime", "stack.stop", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidRequest},
+		{"delete unconfirmed", "stack.stop", `{"delete":true}`, api.ControlRpcCodeOperationFailed, controlCodeConfirmationRequired},
+		{"confirm no delete", "stack.stop", `{"deleteConfirmed":true}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidRequest},
+		{"sign in with no stack", "auth.login", `{}`, api.ControlRpcCodeOperationFailed, controlCodeStackNotRunning},
+		{"sign in to a root that is not one", "auth.login", `{"target":{"kind":"local","root":"no-such-root"}}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"sign out of a root that is not one", "auth.logout", `{"target":{"kind":"local","root":"no-such-root"}}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"useradd routes to the selected root", "identity.useradd", `{"target":{"kind":"local","root":"no-such-root"},"email":"person@example.org","generatePassword":true}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"users list routes to the selected root", "identity.users.list", `{"target":{"kind":"local","root":"no-such-root"}}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"follow a root that is not one", "logs.follow", `{"target":{"kind":"local","root":"no-such-root"}}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"settings of a root that is not one", "settings.list", `{"root":"no-such-root"}`, api.ControlRpcCodeOperationFailed, controlCodeRootNotFound},
+		{"follow a codespace on a runtime", "logs.follow", `{"target":{"kind":"codespace","repo":"o/r"},"runtime":"docker"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidRequest},
+		{"follow an unknown service", "logs.follow", `{"service":"no-such-service"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidService},
+		{"get an unknown setting", "settings.get", `{"name":"no-such-setting"}`, api.ControlRpcCodeOperationFailed, controlCodeUnknownSetting},
+		{"set an unknown setting", "settings.set", `{"name":"no-such-setting","value":"x"}`, api.ControlRpcCodeOperationFailed, controlCodeUnknownSetting},
+		{"unset an unknown setting", "settings.unset", `{"name":"no-such-setting"}`, api.ControlRpcCodeOperationFailed, controlCodeUnknownSetting},
+		{"set a port that is none", "settings.set", `{"name":"keycloak-port","value":"not-a-port"}`, api.ControlRpcCodeOperationFailed, controlCodeInvalidValue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestControlOperationsRefuseUnderTheirCodes(t *testing.T) {
 				t.Fatalf("answered %d %+v (%s), want %d %s; stderr: %s", answer.Error.Code, answer.Error.Data,
 					answer.Error.Message, c.rpcCode, c.code, diag)
 			}
-			if answer.Error.Data.Retryable != retryableCodes[c.code] {
+			if answer.Error.Data.Retryable != c.code.Retryable() {
 				t.Errorf("retryable = %v for %s", answer.Error.Data.Retryable, c.code)
 			}
 			if answer.Error.Message == "" {
@@ -229,7 +229,7 @@ func TestControlOperationThatPanicsFailsItsRequest(t *testing.T) {
 	t.Cleanup(func() { controlHandlers["launcher.about"] = about })
 	controlHandlers["launcher.about"] = func(*controlRequest, *UI) (any, *controlFailure) { panic("a test's panic") }
 	answer, diag := answered(t, "launcher.about", `{}`)
-	if answer.Error == nil || answer.Error.Code != rpcInternalError || answer.Error.Data == nil ||
+	if answer.Error == nil || answer.Error.Code != api.ControlRpcCodeInternalError || answer.Error.Data == nil ||
 		answer.Error.Data.Code != controlCodeFailed {
 		t.Fatalf("answered %+v, want -32603 %s", answer, controlCodeFailed)
 	}
@@ -328,7 +328,7 @@ func TestControlIdentityUsersListForTarget(t *testing.T) {
 		ok      bool
 		resolve controlRealmAdminResolver
 		list    controlRealmUserLister
-		code    string
+		code    api.ControlErrorCode
 	}{
 		{name: "failed root lookup", target: target, ok: false, resolve: resolve, list: list, code: controlCodeFailed},
 		{name: "no local stack", ok: true, resolve: resolve, list: list, code: controlCodeStackNotRunning},

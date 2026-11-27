@@ -531,7 +531,7 @@ func TestEveryControlMethodHasAHandler(t *testing.T) {
 // applyingKeywords: the JSON Schema keywords that never refuse a value
 // themselves: they identify or annotate a schema, or apply one whose own
 // keywords refuse.
-var applyingKeywords = []string{"$comment", "$id", "$ref", "$schema", "description", "items", "properties", "title"}
+var applyingKeywords = []string{"$comment", "$id", "$ref", "$schema", "description", "items", "properties", "title", "x-xynolog-codes"}
 
 // schemaKeywords: the keywords schema uses, its subschemas' included.
 func schemaKeywords(schema map[string]any, into map[string]bool) {
@@ -622,8 +622,8 @@ func TestControlFaultKeywordsAreTheSchemas(t *testing.T) {
 	for _, name := range names {
 		// The directory's tables, and the schema Protocol states each by.
 		switch filepath.Base(name) {
-		case "cli.json", "methods.json", "request-cases.json",
-			"ControlCli.json", "ControlMethods.json", "ControlRequestCases.json":
+		case "cli.json", "methods.json", "request-cases.json", "rpc-codes.json",
+			"ControlCli.json", "ControlMethods.json", "ControlRequestCases.json", "ControlRpcCodes.json":
 			continue
 		}
 		var schema map[string]any

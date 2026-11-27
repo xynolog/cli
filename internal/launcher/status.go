@@ -1351,7 +1351,7 @@ var sessionStateText = map[api.SessionState]string{
 func storedTokenState(base, token string) api.SessionState {
 	asker := xynolog.NewHTTPTransport(xynolog.HTTPTransportConfig{
 		BaseURL: base, Token: xynolog.NewVariable(token),
-		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming(),
+		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming(),
 	})
 	defer asker.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -1361,7 +1361,7 @@ func storedTokenState(base, token string) api.SessionState {
 	switch {
 	case err == nil:
 		return api.SessionStateValid
-	case errors.As(err, &refused) && refused.Code == xynolog.TransportErrorCodeUnauthorized:
+	case errors.As(err, &refused) && refused.Code == api.TransportErrorCodeUnauthorized:
 		return api.SessionStateExpired
 	}
 	return api.SessionStateUnverified
@@ -1619,7 +1619,7 @@ func roleHealthy(role, endpoint string) bool {
 	// Asked with no token, by a transport that opens no stream without one.
 	asker := xynolog.NewHTTPTransport(xynolog.HTTPTransportConfig{
 		BaseURL: base, Token: xynolog.NewVariable(""),
-		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming(),
+		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming(),
 	})
 	defer asker.Close()
 	// The budget matches the generic prober's, so one slow role cannot stall

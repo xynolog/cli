@@ -96,7 +96,7 @@ type Inference struct {
 // Librarian actor.
 type InferenceSpec struct {
 	// Each provider an engine names, and how it is reached.
-	Providers map[api.EngineProvider]Provider `json:"providers"`
+	Providers map[api.InferenceProvider]Provider `json:"providers"`
 
 	// The engine each job is done with when software does it, and the engine
 	// each Librarian actor asks.

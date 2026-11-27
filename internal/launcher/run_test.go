@@ -3,6 +3,8 @@ package launcher
 import (
 	"strings"
 	"testing"
+
+	"github.com/xynolog/sdk/go/api"
 )
 
 // A run's env-file carries its variables and the PATH it puts directories
@@ -19,7 +21,7 @@ func TestRunEnvironment(t *testing.T) {
 		name  string
 		spec  runSpec
 		image imageRun
-		code  string
+		code  api.ControlErrorCode
 	}{
 		{"the supervisor", runSpec{environment: map[string]string{"XYNOLOG_SUPERVISE": "1"}}, alpine, controlCodeInvalidRequest},
 		{"a name holding =", runSpec{environment: map[string]string{"A=B": "x"}}, alpine, controlCodeInvalidRequest},

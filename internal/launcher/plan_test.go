@@ -503,7 +503,7 @@ func TestPlanPortChecksCoverEveryStackPortClaim(t *testing.T) {
 // gives it an image or memory: the shared worker document does
 // (runWorkerAs).
 func TestPlanRunsAWorkerOnlyWhenAJobHasAnEngine(t *testing.T) {
-	claude := &api.Engine{Provider: api.EngineProviderAnthropic, Model: "claude-sonnet-4-5-20250929"}
+	claude := &api.Engine{Provider: api.InferenceProviderAnthropic, Model: "claude-sonnet-4-5-20250929"}
 	for _, c := range []struct {
 		why     string
 		engines func(e *api.ArchivistEngines)
@@ -630,7 +630,7 @@ func TestStopFallbackVerifiesEveryFiatPortClaim(t *testing.T) {
 // placed lines and the models the shared Ollama pulls agree on where each is.
 func TestEachOllamaIsWhereItsOwnDocumentSays(t *testing.T) {
 	somewhere := "http://ollama.example.org:11500"
-	ollama := api.EngineProviderOllama
+	ollama := api.InferenceProviderOllama
 
 	t.Run("the embedding's is somebody else's", func(t *testing.T) {
 		st := fixtureStack(t, "ollama-gemma")

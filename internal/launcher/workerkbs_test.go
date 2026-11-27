@@ -53,9 +53,9 @@ func addedKBOf(domain, gateway, issuer, clientID, lender string) addedKB {
 // list, at gateway, with one engine whose key is named keyEnv ("" for none).
 func localEntryOf(domain, gateway, keyEnv string) api.WorkerKnowledgeBaseConfig {
 	engine := api.WorkerEngineConfig{BaseUrl: "http://192.168.64.1:11434"}
-	engine.Engine.Provider, engine.Engine.Model = api.EngineProviderOllama, "gemma3:1b"
+	engine.Engine.Provider, engine.Engine.Model = api.InferenceProviderOllama, "gemma3:1b"
 	if keyEnv != "" {
-		engine.Engine.Provider, engine.Engine.Model, engine.BaseUrl = api.EngineProviderAnthropic, "claude-haiku", "https://api.anthropic.com"
+		engine.Engine.Provider, engine.Engine.Model, engine.BaseUrl = api.InferenceProviderAnthropic, "claude-haiku", "https://api.anthropic.com"
 		engine.ApiKeyEnv = &keyEnv
 	}
 	entry := api.WorkerKnowledgeBaseConfig{Domain: domain, GatewayUrl: gateway, Engines: []api.WorkerEngineConfig{engine}}

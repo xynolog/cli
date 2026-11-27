@@ -35,7 +35,7 @@ func statusSnapshot(ss *StackSet, views []stackView, cwd kbRoot, codespaces []*S
 // cwd's, discovered by its containers' names.
 func knowledgeBaseStatus(v stackView, ss *StackSet, cwd kbRoot, published []publishedKB, tokens map[string]xynolog.SignIn) api.KnowledgeBaseStatus {
 	kb := api.KnowledgeBaseStatus{Name: v.name, Key: v.key, Recorded: v.st != nil,
-		Placement: api.KnowledgeBaseStatusPlacementLocal, Services: []api.ServiceStatus{}}
+		Placement: api.KbPlacementLocal, Services: []api.ServiceStatus{}}
 	st := v.st
 	root := cwd.dir
 	if st != nil {
@@ -139,7 +139,7 @@ func serviceHealthy(services []api.ServiceStatus, role string) bool {
 func codespaceStatus(c *StackState, recorded bool, published []publishedKB, tokens map[string]xynolog.SignIn) api.KnowledgeBaseStatus {
 	repo := c.Codespace.Repo
 	kb := api.KnowledgeBaseStatus{Name: repo, Key: StackKey(c), Recorded: recorded,
-		Placement: api.KnowledgeBaseStatusPlacementCodespace, Repo: &repo, Did: stated(c.KBDid), Services: []api.ServiceStatus{}}
+		Placement: api.KbPlacementCodespace, Repo: &repo, Did: stated(c.KBDid), Services: []api.ServiceStatus{}}
 	if base, err := CodespaceBase(c); err == nil {
 		kb.Gateway = &base
 		kb.Healthy = httpOK(base + "/api/health")

@@ -70,7 +70,7 @@ func TestEngineModelsAreSortedAndDeduped(t *testing.T) {
 	// Engines of mixed providers list remote models too — these ARE the models
 	// this stack performs inference with, whoever serves them — each under the
 	// provider its engine names.
-	st.Inference.Spec.Engines.Jobs.Yield = &api.Engine{Provider: api.EngineProviderAnthropic, Model: "claude-sonnet-4-5"}
+	st.Inference.Spec.Engines.Jobs.Yield = &api.Engine{Provider: api.InferenceProviderAnthropic, Model: "claude-sonnet-4-5"}
 	got := engineModels(st)
 	want := []servedModel{
 		{Model: "claude-sonnet-4-5", Provider: "anthropic"},

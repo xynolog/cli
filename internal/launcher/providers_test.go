@@ -12,7 +12,7 @@ import (
 
 // assessingWith: the anthropic fixture with the `mark` jobs of assessing given
 // provider's model as their engine, reached as entry states.
-func assessingWith(t *testing.T, provider api.EngineProvider, model string, entry stack.Provider) *stack.Stack {
+func assessingWith(t *testing.T, provider api.InferenceProvider, model string, entry stack.Provider) *stack.Stack {
 	t.Helper()
 	st := fixtureStack(t, "anthropic")
 	st.Inference.Spec.Providers[provider] = entry
@@ -25,14 +25,14 @@ func assessingWith(t *testing.T, provider api.EngineProvider, model string, entr
 // names one.
 func TestWorkerDocumentReachesAProviderAtTheAddressItsEntryStates(t *testing.T) {
 	baseURL := "http://vllm.internal:8000/v1"
-	b, err := aloneWorkerDocument(placed(t, assessingWith(t, api.EngineProviderVllm, "served-model", stack.Provider{BaseURL: &baseURL})))
+	b, err := aloneWorkerDocument(placed(t, assessingWith(t, api.InferenceProviderVllm, "served-model", stack.Provider{BaseURL: &baseURL})))
 	if err != nil {
 		t.Fatal(err)
 	}
 	engines := theKB(t, workerDocumentFrom(t, b)).Engines
 	var vllm *api.WorkerEngineConfig
 	for i := range engines {
-		if engines[i].Engine.Provider == api.EngineProviderVllm {
+		if engines[i].Engine.Provider == api.InferenceProviderVllm {
 			vllm = &engines[i]
 		}
 	}
@@ -49,7 +49,7 @@ func TestWorkerDocumentReachesAProviderAtTheAddressItsEntryStates(t *testing.T) 
 // whatever its providers, and so does the Librarian's.
 func TestWorkerDocumentNamesAProvidersKeyAndTheModelCatalogue(t *testing.T) {
 	baseURL := "https://api.openai.com/v1"
-	p := placed(t, assessingWith(t, api.EngineProviderOpenai, "gpt-listed",
+	p := placed(t, assessingWith(t, api.InferenceProviderOpenai, "gpt-listed",
 		stack.Provider{BaseURL: &baseURL, ApiKey: &stack.SecretRef{FromEnv: "OPENAI_API_KEY"}}))
 	b, err := aloneWorkerDocument(p)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestWorkerDocumentNamesAProvidersKeyAndTheModelCatalogue(t *testing.T) {
 	}
 	var keyed bool
 	for _, engine := range theKB(t, doc).Engines {
-		if engine.Engine.Provider == api.EngineProviderOpenai {
+		if engine.Engine.Provider == api.InferenceProviderOpenai {
 			keyed = engine.ApiKeyEnv != nil && *engine.ApiKeyEnv == "OPENAI_API_KEY" && engine.BaseUrl == baseURL
 		}
 	}
@@ -93,10 +93,10 @@ func TestWorkerDocumentNamesAProvidersKeyAndTheModelCatalogue(t *testing.T) {
 // refused where the worker's document is written, naming the entry.
 func TestAProviderWithNoAddressIsRefused(t *testing.T) {
 	st := fixtureStack(t, "anthropic")
-	st.Inference.Spec.Engines.Jobs.Mark.Assessing = &api.Engine{Provider: api.EngineProviderTogether, Model: "m"}
+	st.Inference.Spec.Engines.Jobs.Mark.Assessing = &api.Engine{Provider: api.InferenceProviderTogether, Model: "m"}
 	mustRefuse(t, st, st.Files.Inference+": spec.engines.jobs.mark.assessing.provider", `"together"`, "spec.providers.together")
 
-	st = assessingWith(t, api.EngineProviderTogether, "m", stack.Provider{})
+	st = assessingWith(t, api.InferenceProviderTogether, "m", stack.Provider{})
 	_, err := aloneWorkerDocument(placed(t, st))
 	if want := st.Files.Inference + ": spec.providers.together.baseURL"; err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("want a refusal naming %s, got %v", want, err)

@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	xynolog "github.com/xynolog/sdk/go"
+	"github.com/xynolog/sdk/go/api"
 	"github.com/xynolog/sdk/go/bus"
 )
 
@@ -87,7 +88,7 @@ func (s *Session) openClient(channels []bus.Channel) *VerbClient {
 		Token:     s.token,
 		Refresher: s,
 		HTTP:      &http.Client{Transport: launcherTransport},
-		Timing:    xynolog.DefaultTiming(),
+		Timing:    xynolog.DefaultTransportTiming(),
 	}
 	direct := xynolog.NewHTTPTransport(config)
 	config.Channels = append(replyChannels(), channels...)
@@ -96,7 +97,7 @@ func (s *Session) openClient(channels []bus.Channel) *VerbClient {
 		Transport: transport,
 		Content:   xynolog.NewHTTPContentTransport(direct),
 		Gateway:   direct,
-		Timing:    xynolog.DefaultTiming(),
+		Timing:    xynolog.DefaultClientTiming(),
 	})
 	return &VerbClient{Client: client, sess: s, bus: transport, direct: direct, unhook: context.AfterFunc(s.ended, client.Close)}
 }
@@ -115,9 +116,9 @@ func (c *VerbClient) Reached() error {
 	c.reach.Do(func() {
 		for state := range c.bus.State().Changes(c.sess.ended) {
 			switch state {
-			case xynolog.ConnectionStateOpen, xynolog.ConnectionStateUnauthenticated, xynolog.ConnectionStateClosed:
+			case api.ConnectionStateOpen, api.ConnectionStateUnauthenticated, api.ConnectionStateClosed:
 				return
-			case xynolog.ConnectionStateReconnecting, xynolog.ConnectionStateDegraded:
+			case api.ConnectionStateReconnecting, api.ConnectionStateDegraded:
 				c.unreachable = &GatewayUnreached{Base: c.sess.base}
 				return
 			}
@@ -150,7 +151,7 @@ func (c *VerbClient) closeTransports() {
 // the session's rejection; anything else is as it came.
 func (s *Session) refusal(err error) error {
 	var refused *xynolog.TransportError
-	if errors.As(err, &refused) && refused.Code == xynolog.TransportErrorCodeUnauthorized {
+	if errors.As(err, &refused) && refused.Code == api.TransportErrorCodeUnauthorized {
 		// The transport asked the session for a token and sent the request
 		// again with it, so this is the second refusal: unless the session has
 		// already ended for its own reason, the gateway refused a token the

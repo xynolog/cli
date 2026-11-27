@@ -125,7 +125,7 @@ func resume(u *UI, key, base string, channels []bus.Channel) (*Session, error) {
 		Kept:   store.Entry(key),
 		Token:  s.token,
 		HTTP:   &http.Client{Transport: launcherTransport},
-		Timing: xynolog.DefaultTiming(),
+		Timing: xynolog.DefaultTransportTiming(),
 	})
 	if err != nil {
 		s.client.closeClient()
@@ -196,11 +196,11 @@ func (s *Session) noteRenewal(before string) {
 // go on with: the command says why.
 func (s *Session) failed(err *xynolog.SessionError) {
 	switch err.Code {
-	case xynolog.SessionErrorCodeRefreshExhausted:
+	case api.SessionErrorCodeRefreshExhausted:
 		s.end(&SessionRejected{refresh: errors.New(err.Message), kept: s.stillKept()})
-	case xynolog.SessionErrorCodeCredentialRefused:
+	case api.SessionErrorCodeCredentialRefused:
 		s.end(&SessionRejected{})
-	case xynolog.SessionErrorCodeAuthFailed:
+	case api.SessionErrorCodeAuthFailed:
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.unconfirmed = err.Message
@@ -323,7 +323,7 @@ func (s *Session) over(why *SessionRejected) {
 // unauthorized: the gateway refused the token a call bore.
 func unauthorized(err error) bool {
 	var refused *xynolog.TransportError
-	return errors.As(err, &refused) && refused.Code == xynolog.TransportErrorCodeUnauthorized
+	return errors.As(err, &refused) && refused.Code == api.TransportErrorCodeUnauthorized
 }
 
 // SessionRejected: the gateway refused the token and the renewal could not
@@ -478,7 +478,7 @@ func signOut(ctx context.Context, u *UI, target *StackState) (api.AuthLogoutResu
 	}
 	// Issuer-side first, best-effort: an unreachable issuer must not trap the
 	// user in a session they asked to end — but say what it means.
-	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming()}
+	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming()}
 	revoked, err := xynolog.SignOut(ctx, issuer, store.Entry(key))
 	if err != nil {
 		u.Refuse(controlCodeFailed, "Could not remove the stored session: %v", err)

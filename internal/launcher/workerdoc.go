@@ -54,14 +54,14 @@ func jobFilter(job string) (filter api.JobFilter, err error) {
 // Every other provider states one: the launcher keeps no vendor's address but
 // Anthropic's, and runs no server but Ollama's. ONE decider, for the worker's
 // engines and the Librarian actors'. who names the service in a refusal.
-func providerAddress(p placement, provider api.EngineProvider, who string) (string, error) {
+func providerAddress(p placement, provider api.InferenceProvider, who string) (string, error) {
 	baseURL := p.st.Inference.Spec.Providers[provider].BaseURL
 	switch {
-	case provider == api.EngineProviderOllama:
+	case provider == api.InferenceProviderOllama:
 		return p.ollama(baseURL), nil
 	case baseURL != nil:
 		return *baseURL, nil
-	case provider == api.EngineProviderAnthropic:
+	case provider == api.InferenceProviderAnthropic:
 		return saasBase(remoteProviderAddress(p.st, string(provider))), nil
 	}
 	return "", planErr(p.st.Files.Inference, "spec.providers."+string(provider)+".baseURL", "is not stated: %s has no address to reach %s at", who, provider)
@@ -69,7 +69,7 @@ func providerAddress(p placement, provider api.EngineProvider, who string) (stri
 
 // providerKeyName: the variable holding a provider's key, as its entry in the
 // Inference document names it; none when it names none.
-func providerKeyName(p placement, provider api.EngineProvider) *string {
+func providerKeyName(p placement, provider api.InferenceProvider) *string {
 	if key := p.st.Inference.Spec.Providers[provider].ApiKey; key != nil {
 		return &key.FromEnv
 	}
