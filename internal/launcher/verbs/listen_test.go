@@ -69,7 +69,7 @@ func listened(t *testing.T, fake *xynologtest.FaultyTransport, args []string, na
 			fake.Deliver(frame)
 		}
 		time.Sleep(printing)
-		fake.SetState(xynolog.ConnectionStateReconnecting)
+		fake.SetState(api.ConnectionStateReconnecting)
 		select {
 		case run.code = <-done:
 			run.ended = true

@@ -70,7 +70,7 @@ func dropped(ctx context.Context, transport xynolog.Transport) <-chan struct{} {
 	go func() {
 		opened := false
 		for state := range transport.State().Changes(ctx) {
-			if state == xynolog.ConnectionStateOpen {
+			if state == api.ConnectionStateOpen {
 				opened = true
 			} else if opened {
 				close(out)
@@ -104,7 +104,7 @@ func follow[C any](u *launcher.UI, c *launcher.VerbClient, d delegation, job *xy
 			switch {
 			case errors.As(err, &failed):
 				u.Fail("%s failed: %s", d.failed, failed.Message)
-				if failed.Code != xynolog.JobErrorCodeFailed {
+				if failed.Code != api.JobErrorCodeFailed {
 					fmt.Fprintln(os.Stderr, "  What the job did:  "+d.check)
 				}
 			case jobID.IsZero():

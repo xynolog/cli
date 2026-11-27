@@ -97,7 +97,7 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	}
 	key := StackKey(target)
 
-	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming()}
+	issuer := xynolog.Issuer{HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming()}
 	endpoints, err := issuer.Discover(ctx, base)
 	if err != nil {
 		u.Refuse(controlCodeUnreachable, "%v", err)
@@ -120,7 +120,7 @@ func signIn(ctx context.Context, u *UI, target *StackState, shown func(api.Devic
 	// to the first verb.
 	asker := xynolog.NewHTTPTransport(xynolog.HTTPTransportConfig{
 		BaseURL: base, Token: xynolog.NewVariable(tokens.Access),
-		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming(),
+		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming(),
 	})
 	me, err := asker.GetCurrentUser(ctx)
 	asker.Close()

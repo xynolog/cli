@@ -378,7 +378,7 @@ func annotationsOf(u *launcher.UI, c *launcher.VerbClient, resourceID api.Resour
 	switch {
 	case err == nil:
 		return list, true
-	case errors.As(err, &refused) && refused.Code == xynolog.TransportErrorCodeNotFound:
+	case errors.As(err, &refused) && refused.Code == api.TransportErrorCodeNotFound:
 		u.Fail("There is no resource %s in this knowledge base.", resourceID)
 		return nil, false
 	default:

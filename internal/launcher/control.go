@@ -44,17 +44,6 @@ contract. It serves until stdin ends, then waits for every request in flight
 to end, and exits.
 `
 
-// JSON-RPC 2.0's own error codes, and the one this API gives an operation's
-// failure, whose data names the reason.
-const (
-	rpcParseError     = -32700
-	rpcInvalidRequest = -32600
-	rpcMethodNotFound = -32601
-	rpcInvalidParams  = -32602
-	rpcInternalError  = -32603
-	rpcOperationError = -32000
-)
-
 // controlMethod and controlNotification: a row of the tables
 // control_schemas_gen.go generates from protocol/specs/src/control/methods.json.
 type controlMethod struct {
@@ -282,7 +271,7 @@ type rpcMessage struct {
 func (s *controlServer) receive(line []byte) {
 	trimmed := bytes.TrimSpace(line)
 	if trimmed[0] == '[' {
-		s.reply(nil, nil, &rpcError{Code: rpcInvalidRequest, Message: "this API takes no batches: send each request on its own line"})
+		s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: "this API takes no batches: send each request on its own line"})
 		return
 	}
 	var msg rpcMessage
@@ -291,18 +280,18 @@ func (s *controlServer) receive(line []byte) {
 	if err := decoder.Decode(&msg); err != nil {
 		var unknown *json.UnmarshalTypeError
 		if errors.As(err, &unknown) || strings.HasPrefix(err.Error(), "json: unknown field") {
-			s.reply(nil, nil, &rpcError{Code: rpcInvalidRequest, Message: "not a JSON-RPC request: " + err.Error()})
+			s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: "not a JSON-RPC request: " + err.Error()})
 			return
 		}
-		s.reply(nil, nil, &rpcError{Code: rpcParseError, Message: "not JSON: " + err.Error()})
+		s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeParseError, Message: "not JSON: " + err.Error()})
 		return
 	}
 	if decoder.More() {
-		s.reply(nil, nil, &rpcError{Code: rpcParseError, Message: "more than one JSON value on a line"})
+		s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeParseError, Message: "more than one JSON value on a line"})
 		return
 	}
 	if msg.JSONRPC != "2.0" || msg.Method == nil || *msg.Method == "" {
-		s.reply(nil, nil, &rpcError{Code: rpcInvalidRequest, Message: `a request states "jsonrpc": "2.0" and a method`})
+		s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: `a request states "jsonrpc": "2.0" and a method`})
 		return
 	}
 	if msg.ID == nil {
@@ -311,12 +300,12 @@ func (s *controlServer) receive(line []byte) {
 	}
 	key, ok := requestKey(msg.ID)
 	if !ok {
-		s.reply(nil, nil, &rpcError{Code: rpcInvalidRequest, Message: "a request's id is a string or an integer"})
+		s.reply(nil, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: "a request's id is a string or an integer"})
 		return
 	}
 	method, known := controlMethodNamed(*msg.Method)
 	if !known {
-		s.reply(msg.ID, nil, &rpcError{Code: rpcMethodNotFound, Message: fmt.Sprintf("no method %q: see protocol/specs/src/control/methods.json", *msg.Method)})
+		s.reply(msg.ID, nil, &rpcError{Code: api.ControlRpcCodeMethodNotFound, Message: fmt.Sprintf("no method %q: see protocol/specs/src/control/methods.json", *msg.Method)})
 		return
 	}
 	if failure := s.schemas.checkParams(method, msg.Params); failure != nil {
@@ -325,7 +314,7 @@ func (s *controlServer) receive(line []byte) {
 	}
 	var id api.RequestId
 	if err := json.Unmarshal(msg.ID, &id); err != nil {
-		s.reply(msg.ID, nil, &rpcError{Code: rpcInvalidRequest, Message: "a request's id could not be read: " + err.Error()})
+		s.reply(msg.ID, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: "a request's id could not be read: " + err.Error()})
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -334,7 +323,7 @@ func (s *controlServer) receive(line []byte) {
 	if _, busy := s.inFlight[key]; busy {
 		s.mu.Unlock()
 		cancel()
-		s.reply(msg.ID, nil, &rpcError{Code: rpcInvalidRequest, Message: "a request with this id is in flight"})
+		s.reply(msg.ID, nil, &rpcError{Code: api.ControlRpcCodeInvalidRequest, Message: "a request with this id is in flight"})
 		return
 	}
 	s.inFlight[key] = req
@@ -503,7 +492,7 @@ func (s *controlServer) answer(req *controlRequest, result any, failure *control
 	}
 	if err != nil {
 		fmt.Fprintf(s.diag, "✗ control: %s: %v\n", req.method.name, err)
-		s.reply(req.id, nil, (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + err.Error(), rpcCode: rpcInternalError}).rpc())
+		s.reply(req.id, nil, (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + err.Error(), rpcCode: api.ControlRpcCodeInternalError}).rpc())
 		return
 	}
 	s.reply(req.id, json.RawMessage(text), nil)
@@ -511,9 +500,9 @@ func (s *controlServer) answer(req *controlRequest, result any, failure *control
 
 // rpcError: a JSON-RPC error object.
 type rpcError struct {
-	Code    int            `json:"code"`
-	Message string         `json:"message"`
-	Data    *api.ErrorData `json:"data,omitempty"`
+	Code    api.ControlRpcCode `json:"code"`
+	Message string             `json:"message"`
+	Data    *api.ErrorData     `json:"data,omitempty"`
 }
 
 // reply writes a response: id null for a request whose id could not be read.
@@ -529,7 +518,7 @@ func (s *controlServer) reply(id json.Marshaler, result json.RawMessage, failure
 			if fault := s.schemas.check(controlErrorDataSchema, data); fault != nil {
 				said := fmt.Sprintf("an error's data does not hold to %s: %s", controlErrorDataSchema, fault.message)
 				fmt.Fprintf(s.diag, "✗ control: %s\n", said)
-				failure = (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + said, rpcCode: rpcInternalError}).rpc()
+				failure = (&controlFailure{code: controlCodeFailed, message: "the launcher could not answer: " + said, rpcCode: api.ControlRpcCodeInternalError}).rpc()
 			}
 		}
 		response["error"] = failure
@@ -587,20 +576,20 @@ func (req *controlRequest) ui() *UI {
 
 // controlFailure: why an operation failed, as its error states it.
 type controlFailure struct {
-	code        string
+	code        api.ControlErrorCode
 	message     string
 	retryable   bool
 	choices     []api.Target
 	fields      []api.FieldFault
 	supported   []string
 	mayStillRun *bool
-	rpcCode     int // 0: rpcOperationError
+	rpcCode     api.ControlRpcCode // 0: api.ControlRpcCodeOperationFailed
 }
 
 func (f *controlFailure) rpc() *rpcError {
 	code := f.rpcCode
 	if code == 0 {
-		code = rpcOperationError
+		code = api.ControlRpcCodeOperationFailed
 	}
 	return &rpcError{Code: code, Message: f.message, Data: &api.ErrorData{
 		Code: f.code, Retryable: f.retryable, Choices: listed(f.choices), Fields: listed(f.fields),
@@ -613,7 +602,7 @@ func (f *controlFailure) rpc() *rpcError {
 // code (u.Fail) fails under stepCode, the code its method gives that step. An
 // operation that failed without refusing at all printed why, if it said
 // anything: its message says so.
-func failed(u *UI, stepCode string) *controlFailure {
+func failed(u *UI, stepCode api.ControlErrorCode) *controlFailure {
 	f := &controlFailure{code: u.refused.code, message: u.refused.message, choices: u.refused.choices}
 	if f.code == "" {
 		f.code = stepCode
@@ -621,16 +610,8 @@ func failed(u *UI, stepCode string) *controlFailure {
 	if f.message == "" {
 		f.message = "the operation failed without refusing: its progress is everything it printed"
 	}
-	f.retryable = retryableCodes[f.code]
+	f.retryable = f.code.Retryable()
 	return f
-}
-
-// retryableCodes: the failures the same request can get past, sent again
-// once something outside it changes.
-var retryableCodes = map[string]bool{
-	controlCodeStackNotRunning: true, controlCodeStartInProgress: true, controlCodeRuntimeUnavailable: true,
-	controlCodeDependencyUnavailable: true, controlCodeUnreachable: true, controlCodeUnreadableState: true,
-	controlCodeStackRunning: true, controlCodeSignInFailed: true, controlCodeFailed: true,
 }
 
 // stripANSI removes terminal escapes (colour, bold) from a line.

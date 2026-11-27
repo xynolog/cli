@@ -92,7 +92,7 @@ func publishedKBs(ss *StackSet) []publishedKB {
 		if st.KBDid == "" {
 			continue
 		}
-		e := api.DiscoveredKB{Host: "localhost", Port: 4000, Placement: api.DiscoveredKBPlacementLocal,
+		e := api.DiscoveredKB{Host: "localhost", Port: 4000, Placement: api.KbPlacementLocal,
 			Did: st.KBDid, ManagedBy: "xynolog-launcher"}
 		// The gateway endpoint carries the real port when the config moved it.
 		if b, ok := st.Services["gateway"]; ok {
@@ -140,7 +140,7 @@ func publishedKBs(ss *StackSet) []publishedKB {
 		}
 		claimed[c.Codespace.ForwardPort] = true
 		kbs = append(kbs, publishedKB{stack: c, kb: api.DiscoveredKB{
-			Host: "localhost", Port: c.Codespace.ForwardPort, Placement: api.DiscoveredKBPlacementCodespace,
+			Host: "localhost", Port: c.Codespace.ForwardPort, Placement: api.KbPlacementCodespace,
 			Repo: opt(c.Codespace.Repo), Did: c.KBDid, ManagedBy: "xynolog-launcher",
 		}})
 	}

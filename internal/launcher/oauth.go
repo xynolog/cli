@@ -29,7 +29,7 @@ import (
 func advertisedIssuer(base string) (string, error) {
 	asker := xynolog.NewHTTPTransport(xynolog.HTTPTransportConfig{
 		BaseURL: base, Token: xynolog.NewVariable(""),
-		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTiming(),
+		HTTP: &http.Client{Transport: launcherTransport}, Timing: xynolog.DefaultTransportTiming(),
 	})
 	defer asker.Close()
 	metadata, err := asker.GetProtectedResourceMetadata(context.Background())

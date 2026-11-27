@@ -177,7 +177,7 @@ func Listen(args []string) int {
 
 	opened := false
 	for state := range c.Transport.State().Changes(ctx) {
-		if state == xynolog.ConnectionStateOpen {
+		if state == api.ConnectionStateOpen {
 			opened = true
 			break
 		}

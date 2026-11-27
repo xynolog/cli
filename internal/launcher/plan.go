@@ -231,9 +231,9 @@ func ollamaModels(st *stack.Stack) []modelNeed {
 	// Every actor's and job's engine is the INFERENCE role however many
 	// engines name the same model; the embedding role is added last, so Roles
 	// ends up in one order.
-	if st.Inference.Spec.Providers[api.EngineProviderOllama].BaseURL == nil {
+	if st.Inference.Spec.Providers[api.InferenceProviderOllama].BaseURL == nil {
 		for _, b := range boundEngines(st.Inference.Spec.Engines) {
-			if b.engine.Provider == api.EngineProviderOllama {
+			if b.engine.Provider == api.InferenceProviderOllama {
 				add(b.engine.Model, roleInference)
 			}
 		}
@@ -303,7 +303,7 @@ func remoteInferenceDriver(st *stack.Stack) string {
 // inference role the remote-model check dials (saasBase), and the address a
 // worker's document gives an engine whose provider states none (workerdoc.go).
 func remoteProviderAddress(st *stack.Stack, driver string) (host string, port int) {
-	if p, ok := st.Inference.Spec.Providers[api.EngineProvider(driver)]; ok && p.BaseURL != nil {
+	if p, ok := st.Inference.Spec.Providers[api.InferenceProvider(driver)]; ok && p.BaseURL != nil {
 		host, port = parseHostPort(*p.BaseURL)
 		if port == 0 && strings.HasPrefix(*p.BaseURL, "https://") {
 			port = 443
@@ -661,13 +661,13 @@ func derivePlan(st *stack.Stack, issuer *issuerDocument, vectors *vectorStoreDoc
 		if _, stated := providers[b.engine.Provider]; !stated {
 			return nil, planErr(files.Inference, "spec.engines."+b.at+".provider", "is %q, and spec.providers says nothing of it — add spec.providers.%s", b.engine.Provider, b.engine.Provider)
 		}
-		if b.engine.Provider == api.EngineProviderOllama {
+		if b.engine.Provider == api.InferenceProviderOllama {
 			enginesUseOllama = true
 		}
 	}
 	// inferenceOllama: where the Ollama that performs inference is — the
 	// Inference document's to say, and nil for the shared one.
-	inferenceOllama := providers[api.EngineProviderOllama].BaseURL
+	inferenceOllama := providers[api.InferenceProviderOllama].BaseURL
 
 	// graph
 	{
@@ -867,7 +867,7 @@ func derivePlan(st *stack.Stack, issuer *issuerDocument, vectors *vectorStoreDoc
 			Driver: driver, Address: host, Port: port,
 			Models: engineModels(st),
 		}
-		if key := providers[api.EngineProvider(driver)].ApiKey; key != nil {
+		if key := providers[api.InferenceProvider(driver)].ApiKey; key != nil {
 			rp.APIKey = key.FromEnv
 		}
 		plan.Roles["inference"] = rp

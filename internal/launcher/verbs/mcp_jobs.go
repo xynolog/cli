@@ -97,7 +97,7 @@ func progressNotifier(ctx context.Context, call mcpCall) func(said string) {
 func callersJob(ctx context.Context, call mcpCall, jobID api.JobId) (api.JobStatusResponse, error) {
 	status, err := call.client().Job.Status(ctx, jobID)
 	var failed *xynolog.BusRequestError
-	if errors.As(err, &failed) && failed.Code == xynolog.BusRequestErrorCodeNotFound {
+	if errors.As(err, &failed) && failed.Code == api.BusRequestErrorCodeNotFound {
 		return status, unknownJob(jobID)
 	}
 	if err != nil {

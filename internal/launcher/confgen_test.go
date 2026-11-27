@@ -173,7 +173,7 @@ func TestBareInitProducesAStartableKB(t *testing.T) {
 		t.Fatalf("a start cannot plan the documents init wrote: %v", err)
 	}
 	providers := st.Inference.Spec.Providers
-	if _, ollama := providers[api.EngineProviderOllama]; !ollama || len(providers) != 1 {
+	if _, ollama := providers[api.InferenceProviderOllama]; !ollama || len(providers) != 1 {
 		t.Errorf("the bare KB's providers are %v, want Ollama alone — no credential needed", providers)
 	}
 }
@@ -200,7 +200,7 @@ func TestAnthropicInitNeedsNoKeyToWriteAConfig(t *testing.T) {
 		t.Fatalf("no documents a start reads were written: %v", err)
 	}
 	// Needed at start, not at birth.
-	if key := st.Inference.Spec.Providers[api.EngineProviderAnthropic].ApiKey; key == nil || key.FromEnv != "ANTHROPIC_API_KEY" {
+	if key := st.Inference.Spec.Providers[api.InferenceProviderAnthropic].ApiKey; key == nil || key.FromEnv != "ANTHROPIC_API_KEY" {
 		t.Errorf("the Inference document names the key as %+v, want the variable ANTHROPIC_API_KEY", key)
 	}
 	for _, b := range boundEngines(st.Inference.Spec.Engines) {

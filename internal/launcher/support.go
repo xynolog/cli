@@ -45,13 +45,14 @@ type UI struct {
 // named ("" for a Fail, which names none), the message it said, and the
 // targets a person could have meant.
 type refusal struct {
-	made          bool
-	code, message string
-	choices       []api.Target
+	made    bool
+	code    api.ControlErrorCode
+	message string
+	choices []api.Target
 }
 
 // record keeps the first refusal said through u, whole.
-func (u *UI) record(code string, choices []api.Target, line string) {
+func (u *UI) record(code api.ControlErrorCode, choices []api.Target, line string) {
 	if u.refused != nil && !u.refused.made {
 		*u.refused = refusal{made: true, code: code, message: line, choices: choices}
 	}
@@ -121,20 +122,20 @@ func (u *UI) Fail(format string, a ...any) {
 
 // Refuse says a refusal as Fail does, and records code, a code of
 // codes.json's control group, as the reason a control request fails.
-func (u *UI) Refuse(code, format string, a ...any) {
+func (u *UI) Refuse(code api.ControlErrorCode, format string, a ...any) {
 	u.RefuseChoosing(code, nil, format, a...)
 }
 
 // RefusePlain is Refuse for a refusal a person reads on stderr as it is, with
 // no mark before it.
-func (u *UI) RefusePlain(code, format string, a ...any) {
+func (u *UI) RefusePlain(code api.ControlErrorCode, format string, a ...any) {
 	line := fmt.Sprintf(format, a...)
 	u.record(code, nil, line)
 	u.say(os.Stderr, "fail", "%s\n", line)
 }
 
 // RefuseChoosing is Refuse naming the targets a person could have meant.
-func (u *UI) RefuseChoosing(code string, choices []api.Target, format string, a ...any) {
+func (u *UI) RefuseChoosing(code api.ControlErrorCode, choices []api.Target, format string, a ...any) {
 	line := fmt.Sprintf(format, a...)
 	u.record(code, choices, line)
 	u.say(os.Stderr, "fail", u.Wrap(AnsiRed, "✗")+" %s\n", line)

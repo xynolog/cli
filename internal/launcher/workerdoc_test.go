@@ -17,13 +17,13 @@ import (
 
 // anthropicHaiku: Anthropic's haiku, as an engine.
 func anthropicHaiku() *api.Engine {
-	return &api.Engine{Provider: api.EngineProviderAnthropic, Model: "claude-haiku-4-5-20251001"}
+	return &api.Engine{Provider: api.InferenceProviderAnthropic, Model: "claude-haiku-4-5-20251001"}
 }
 
 // withAnthropic: st with the anthropic provider stated, at Anthropic's own
 // address, under the key named ANTHROPIC_API_KEY.
 func withAnthropic(st *stack.Stack) {
-	st.Inference.Spec.Providers[api.EngineProviderAnthropic] = stack.Provider{ApiKey: &stack.SecretRef{FromEnv: "ANTHROPIC_API_KEY"}}
+	st.Inference.Spec.Providers[api.InferenceProviderAnthropic] = stack.Provider{ApiKey: &stack.SecretRef{FromEnv: "ANTHROPIC_API_KEY"}}
 }
 
 // threeEngines: the ollama-gemma fixture with its highlighting jobs given
@@ -313,7 +313,7 @@ func TestWorkerDocumentNamesAKey(t *testing.T) {
 	p := placed(t, threeEngines(t))
 	for _, engine := range theKB(t, workerDocumentOf(t, p)).Engines {
 		switch engine.Engine.Provider {
-		case api.EngineProviderAnthropic:
+		case api.InferenceProviderAnthropic:
 			if engine.ApiKeyEnv == nil || *engine.ApiKeyEnv != "ANTHROPIC_API_KEY" {
 				t.Errorf("the anthropic engine's apiKeyEnv = %v, want the key named", engine.ApiKeyEnv)
 			}
@@ -351,10 +351,10 @@ func TestWorkerIsHandedOnlyTheKeysItsEnginesUse(t *testing.T) {
 func TestWorkerDocumentNamesTheKeyOfEveryProviderThatStatesOne(t *testing.T) {
 	st := threeEngines(t)
 	baseURL := "https://ollama.internal"
-	st.Inference.Spec.Providers[api.EngineProviderOllama] = stack.Provider{BaseURL: &baseURL, ApiKey: &stack.SecretRef{FromEnv: "OLLAMA_API_KEY"}}
+	st.Inference.Spec.Providers[api.InferenceProviderOllama] = stack.Provider{BaseURL: &baseURL, ApiKey: &stack.SecretRef{FromEnv: "OLLAMA_API_KEY"}}
 	p := placed(t, st)
 	for _, engine := range theKB(t, workerDocumentOf(t, p)).Engines {
-		if engine.Engine.Provider != api.EngineProviderOllama {
+		if engine.Engine.Provider != api.InferenceProviderOllama {
 			continue
 		}
 		if engine.ApiKeyEnv == nil || *engine.ApiKeyEnv != "OLLAMA_API_KEY" {
@@ -371,12 +371,12 @@ func TestWorkerDocumentNamesTheKeyOfEveryProviderThatStatesOne(t *testing.T) {
 func TestWorkerDocumentStatesAProvidersAddressAsItsEntryDoes(t *testing.T) {
 	st := threeEngines(t)
 	ollama, proxy := "http://ollama.internal:11434", "https://proxy.internal/v1"
-	st.Inference.Spec.Providers[api.EngineProviderOllama] = stack.Provider{BaseURL: &ollama}
-	st.Inference.Spec.Providers[api.EngineProviderAnthropic] = stack.Provider{BaseURL: &proxy, ApiKey: &stack.SecretRef{FromEnv: "ANTHROPIC_API_KEY"}}
+	st.Inference.Spec.Providers[api.InferenceProviderOllama] = stack.Provider{BaseURL: &ollama}
+	st.Inference.Spec.Providers[api.InferenceProviderAnthropic] = stack.Provider{BaseURL: &proxy, ApiKey: &stack.SecretRef{FromEnv: "ANTHROPIC_API_KEY"}}
 	for _, engine := range theKB(t, workerDocumentOf(t, placed(t, st))).Engines {
-		want := map[api.EngineProvider]string{
-			api.EngineProviderOllama:    ollama,
-			api.EngineProviderAnthropic: proxy,
+		want := map[api.InferenceProvider]string{
+			api.InferenceProviderOllama:    ollama,
+			api.InferenceProviderAnthropic: proxy,
 		}[engine.Engine.Provider]
 		if engine.BaseUrl != want {
 			t.Errorf("%s/%s is reached at %q, want %q, as its entry states", engine.Engine.Provider, engine.Engine.Model, engine.BaseUrl, want)
@@ -388,9 +388,9 @@ func TestWorkerDocumentStatesAProvidersAddressAsItsEntryDoes(t *testing.T) {
 // itself reaches Anthropic for the remote-model check: one decider.
 func TestWorkerDocumentReachesAnthropicWhereTheLauncherDoes(t *testing.T) {
 	st := fixtureStack(t, "anthropic")
-	anthropic := st.Inference.Spec.Providers[api.EngineProviderAnthropic]
+	anthropic := st.Inference.Spec.Providers[api.InferenceProviderAnthropic]
 	anthropic.BaseURL = nil
-	st.Inference.Spec.Providers[api.EngineProviderAnthropic] = anthropic
+	st.Inference.Spec.Providers[api.InferenceProviderAnthropic] = anthropic
 	p := placed(t, st)
 	rp := p.plan.Roles["inference"]
 	if rp.Driver != "anthropic" {

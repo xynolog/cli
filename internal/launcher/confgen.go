@@ -118,15 +118,15 @@ func generateStack(p genParams, name string) (map[string][]byte, error) {
 
 	var inference stack.Inference
 	inference.ApiVersion, inference.Kind, inference.Metadata = meta("Inference", name)
-	provider := api.EngineProvider(p.Inference)
+	provider := api.InferenceProvider(p.Inference)
 	switch provider {
-	case api.EngineProviderAnthropic:
+	case api.InferenceProviderAnthropic:
 		baseURL := p.AnthropicEndpoint
-		inference.Spec.Providers = map[api.EngineProvider]stack.Provider{
+		inference.Spec.Providers = map[api.InferenceProvider]stack.Provider{
 			provider: {BaseURL: &baseURL, ApiKey: &stack.SecretRef{FromEnv: "ANTHROPIC_API_KEY"}},
 		}
-	case api.EngineProviderOllama:
-		inference.Spec.Providers = map[api.EngineProvider]stack.Provider{provider: {}}
+	case api.InferenceProviderOllama:
+		inference.Spec.Providers = map[api.InferenceProvider]stack.Provider{provider: {}}
 	default:
 		return nil, fmt.Errorf("the provider %q: init writes an Inference document for anthropic or ollama", p.Inference)
 	}

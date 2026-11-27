@@ -85,12 +85,12 @@ type requestCase struct {
 		ID     json.RawMessage `json:"id"`
 		Result bool            `json:"result"`
 		Error  *struct {
-			Code int `json:"code"`
+			Code api.ControlRpcCode `json:"code"`
 			Data *struct {
-				Code      string   `json:"code"`
-				Retryable bool     `json:"retryable"`
-				Fields    []string `json:"fields"`
-				Supported []string `json:"supported"`
+				Code      api.ControlErrorCode `json:"code"`
+				Retryable bool                 `json:"retryable"`
+				Fields    []string             `json:"fields"`
+				Supported []string             `json:"supported"`
 			} `json:"data"`
 		} `json:"error"`
 	} `json:"answer"`

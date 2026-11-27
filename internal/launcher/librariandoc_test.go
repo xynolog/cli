@@ -87,7 +87,7 @@ func TestLibrarianDocumentStatesWhatThePlacementDecides(t *testing.T) {
 	if doc.Matcher.Engine != *anthropicHaiku() || doc.Matcher.BaseUrl != "https://api.anthropic.com" || doc.Matcher.ApiKeyEnv == nil || *doc.Matcher.ApiKeyEnv != "ANTHROPIC_API_KEY" {
 		t.Errorf("matcher = %+v, want %+v at Anthropic's own address, its key named ANTHROPIC_API_KEY", doc.Matcher, *anthropicHaiku())
 	}
-	gatherer := api.Engine{Provider: api.EngineProviderOllama, Model: "gemma4:26b"}
+	gatherer := api.Engine{Provider: api.InferenceProviderOllama, Model: "gemma4:26b"}
 	if doc.Gatherer.Engine != gatherer || doc.Gatherer.BaseUrl != "http://192.168.64.1:11434" || doc.Gatherer.ApiKeyEnv != nil {
 		t.Errorf("gatherer = %+v, want %+v at the Ollama this start places, with no key", doc.Gatherer, gatherer)
 	}

@@ -49,7 +49,7 @@ func (req *controlRequest) operate() (result any, failure *controlFailure) {
 	defer func() {
 		if p := recover(); p != nil {
 			fmt.Fprintf(req.server.diag, "✗ control: %s panicked: %v\n", req.method.name, p)
-			result, failure = nil, &controlFailure{code: controlCodeFailed, rpcCode: rpcInternalError,
+			result, failure = nil, &controlFailure{code: controlCodeFailed, rpcCode: api.ControlRpcCodeInternalError,
 				message: fmt.Sprintf("the launcher failed: %v", p)}
 		}
 	}()
@@ -63,7 +63,7 @@ func (req *controlRequest) operate() (result any, failure *controlFailure) {
 // decode reads req's params, which checkParams held to their schema, into p.
 func (req *controlRequest) decode(p any) *controlFailure {
 	if err := json.Unmarshal(req.params, p); err != nil {
-		return &controlFailure{code: controlCodeInvalidParams, rpcCode: rpcInvalidParams,
+		return &controlFailure{code: controlCodeInvalidParams, rpcCode: api.ControlRpcCodeInvalidParams,
 			message: fmt.Sprintf("%s's params: %v", req.method.name, err)}
 	}
 	return nil
@@ -143,7 +143,7 @@ func controlRootsList(req *controlRequest, u *UI) (any, *controlFailure) {
 // control: r as roots.list states it.
 func (r *knownRoot) control() api.Root {
 	path, present := r.path, !r.missing
-	root := api.Root{Placement: api.RootPlacementLocal, Path: &path, Present: &present,
+	root := api.Root{Placement: api.KbPlacementLocal, Path: &path, Present: &present,
 		Current: stated(r.current), Registered: r.entry != nil, Running: r.running,
 		Did: stated(r.did), SiteName: stated(r.siteName), Config: stated(r.config)}
 	if r.identityErr != nil {
@@ -161,7 +161,7 @@ func (r *knownRoot) control() api.Root {
 // control: c as roots.list states it.
 func (c knownCodespace) control() api.Root {
 	cs := c.stack.Codespace
-	root := api.Root{Placement: api.RootPlacementCodespace, Running: true,
+	root := api.Root{Placement: api.KbPlacementCodespace, Running: true,
 		Repo: stated(cs.Repo), Codespace: stated(cs.Name), Did: stated(c.stack.KBDid), CodespaceState: stated(c.state)}
 	if cs.ForwardPort != 0 {
 		port, forwarded, reachable := cs.ForwardPort, c.forwarded, c.reachable

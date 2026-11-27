@@ -293,7 +293,7 @@ func yieldOne(u *launcher.UI, c *launcher.VerbClient, root, up, name string) int
 	switch {
 	case errors.As(refusal, &rej):
 		return launcher.RejectedFail(u, "yield", rej)
-	case errors.As(refusal, &refused) && refused.Code == xynolog.TransportErrorCodeBadRequest:
+	case errors.As(refusal, &refused) && refused.Code == api.TransportErrorCodeBadRequest:
 		u.Fail("Gateway rejected %s: %s", up, refused.Message)
 	case errors.As(refusal, &refused):
 		if status, answered := refused.Status(); answered {

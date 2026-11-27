@@ -37,19 +37,15 @@ func TestMCPAGatherSendsTheWindowStatedAndRefusesOneOutOfBounds(t *testing.T) {
 	cs, fake, _ := mcpFixture(t)
 	gathering := bus.GatherRequested.Request().Channel()
 
-	// No window stated: the tool states none of its own, and the SDK sends
-	// the one its surface states for a call that states none. Neither context
-	// is asked for or refused.
+	// Nothing stated: the tool states no option of its own, and the SDK sends
+	// none, so the gatherer decides the window and each context.
 	callTool(t, cs, "gather_annotation", map[string]any{"resourceId": "res-1", "annotationId": "ann-1"})
 	gathers := requestsOf(fake, gathering)
 	if len(gathers) != 1 {
 		t.Fatalf("gathered %d times, want once", len(gathers))
 	}
 	payload := string(gathers[0].Payload)
-	if !strings.Contains(payload, `"contextWindow":2000`) {
-		t.Errorf("a gather that stated no window did not send the surface's: %s", payload)
-	}
-	for _, unstated := range []string{"includeSourceContext", "includeTargetContext"} {
+	for _, unstated := range []string{"contextWindow", "includeSourceContext", "includeTargetContext"} {
 		if strings.Contains(payload, unstated) {
 			t.Errorf("a gather that stated no %s sent one: %s", unstated, payload)
 		}
